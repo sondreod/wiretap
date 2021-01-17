@@ -1,0 +1,4 @@
+requests
+influxdb_client
+pydantic>=1.7.3
+parallel-ssh
