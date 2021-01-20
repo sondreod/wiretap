@@ -1,9 +1,11 @@
+import logging
 from pssh.clients import SSHClient
 
 from wiretap import collectors
 from wiretap.config import settings
 from wiretap.schemas import Server
 
+log = logging.getLogger()
 
 
 class Remote:
@@ -21,7 +23,7 @@ class Remote:
         server_response = self.client.run_command(command)
         stderr = list(server_response.stderr)
         if stderr:
-            print(stderr)
+            log.error(stderr)
         return collector.run(server_response.stdout,
                              self.config.get(collector.__name__.lower()))
 
