@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setuptools.setup(
     name="wiretap",
     version="0.3.1-alpha",
-    description="Agentless health and log aggregation for unix systems",
+    description="Agentless health and log aggregation for Debian based systems",
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),

@@ -1,10 +1,10 @@
 [Unit]
-Description=Agentless metric and log collector for unix systems
+Description=Agentless metric and log collector for Debian based systems
 After=multi-user.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python /opt/wiretap/main.py
+ExecStart=/opt/wiretap/venv/bin/python /opt/wiretap/main.py
 #StandardInput=tty-force
 
 [Install]
