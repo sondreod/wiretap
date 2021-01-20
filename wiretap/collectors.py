@@ -135,8 +135,7 @@ class JournalCtl:
             for cfg in config:
                 "^New session \d+ of user (?P<value>[a-z]+)"
                 m = re.match(cfg.get('regex'), line.message)
-                if m:
-                    m = m.groupdict()
+                if m := m.groupdict():
                     print(m.get('value'))
                     yield Metric(time=line.timestamp,
                                  tag=m.get('tag', cfg.get('tag')),

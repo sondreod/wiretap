@@ -25,7 +25,8 @@ ALL = [collectors.Cpu,
        collectors.Network,
        collectors.Disk,
        #collectors.JournalCtl
-        ]
+       #collectors.Files
+       ]
 
 inventory = [
     schemas.Server(name="Test1", host="192.168.1.127", username="ubuntu"),
@@ -85,7 +86,6 @@ if __name__ == '__main__':
 
         remote = Remote(server, engine.config)
         collector_objects = ALL
-        log.error('test')
         while True:
             try:
                 for c in collector_objects:
@@ -116,5 +116,5 @@ if __name__ == '__main__':
             engine.add_metric(server, Metric(tag='health_rtt', time=int(time.time()), value=health_obj.rtt, unit='ms'))
             time.sleep(settings.INTERVAL)
 
-    for thread in threads:
+    for thread in threads:  # todo: Gracefull join threads?
         thread.join()

@@ -21,8 +21,7 @@ class Remote:
         """ Executes the *collector* on the remote, using the config from the *server*."""
         command = self._eval_variables_in_command(collector.command, self.config)
         server_response = self.client.run_command(command)
-        stderr = list(server_response.stderr)
-        if stderr:
+        if stderr := list(server_response.stderr):
             log.error(stderr)
         return collector.run(server_response.stdout,
                              self.config.get(collector.__name__.lower()))
@@ -43,6 +42,6 @@ class Remote:
 if __name__ == '__main__':
 
     remote = Remote(Server(name="Test1", host="192.168.1.127"), {})
-    collector_objects = [collectors.JournalCtl]
+    collector_objects = [collectors.Cpu]
     for c in collector_objects:
         print(list(remote.run(c)))
