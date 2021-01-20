@@ -37,15 +37,26 @@ class Disk:
     @staticmethod
     def run(x, config=None):
         df_output, timestamp = list(x)
-        avail, used, timestamp =\
+        avail, used, timestamp = \
             map(int, [*re.match(r'(\d{3,20})M\s+(\d{3,20})M.+', df_output).groups(),
-                     timestamp])
+                      timestamp])
         return [
             Metric(tag='diskspace_total', time=timestamp, value=avail, unit='MB'),
             Metric(tag='diskspace_used', time=timestamp, value=used, unit='MB'),
             Metric(tag='diskspace_free', time=timestamp, value=avail-used, unit='MB'),
             Metric(tag='diskspace_percent', time=timestamp, value=round(used/avail, 2), unit='%')
         ]
+
+
+class Files:
+    command = r"date +%s && ls arg0"
+
+    @staticmethod
+    def run(x, config=None):
+        timestamp = next(x)
+
+        files = len(x[1:])
+        #return Metric(tag='diskspace_percent', time=timestamp, value=round(used/avail, 2), unit='%')
 
 
 class Processes:
