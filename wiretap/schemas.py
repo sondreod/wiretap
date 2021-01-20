@@ -23,3 +23,4 @@ class Metric(BaseModel):
     time: int
     value: Any
     unit: str
+    agg_type: str = Field("mean", description="The aggregation function (if any) to use when downsampling metrics")

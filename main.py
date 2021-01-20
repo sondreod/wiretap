@@ -15,7 +15,7 @@ from wiretap.config import settings
 from wiretap.remote import Remote
 from wiretap import collectors
 from wiretap.schemas import Metric
-from wiretap.utils import read_file, read_config, write_config, append_file, write_file
+from wiretap.utils import read_file, read_config, write_config
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s / %(name)s: %(message)s')
 log = logging.getLogger("root")
@@ -37,9 +37,9 @@ inventory = [
 class Wiretap:
 
     def __init__(self):
-        self.hashes = set(read_config(self, 'hashes'))
-        self.logs = read_file(self, 'logs')
-        self.config = read_config(self, 'config')
+        self.hashes = set(read_config('hashes'))
+        self.logs = read_file('logs')
+        self.config = read_config('config')
         self.metrics = []
         self.client = InfluxDBClient(url="http://localhost:8086", token=settings.INFLUX_TOKEN)
         self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
@@ -62,6 +62,7 @@ class Wiretap:
                 return None
         point = Point(measurement) \
             .tag("name", server.name) \
+            .tag("agg_type", metric.agg_type) \
             .field(field_name, float(metric.value)) \
             .time(datetime.utcfromtimestamp(metric.time), WritePrecision.S)
 
@@ -73,7 +74,7 @@ class Wiretap:
             return False
         self.hashes.add(hash)
         with self.file_lock:
-            write_config(self, 'hashes', list(self.hashes))
+            write_config('hashes', list(self.hashes))
         return True
 
     def add_point_to_db(self, point):
@@ -91,7 +92,7 @@ if __name__ == '__main__':
                 for c in collector_objects:
                     for metric in remote.run(c):
                         engine.add_metric(server, metric)
-                time.sleep(settings.INTERVAL)
+                time.sleep(settings.COLLECTION_INTERVAL)
             except SessionError as e:
                 log.error(f"Session error: {e}")
                 time.sleep(900)
@@ -114,7 +115,7 @@ if __name__ == '__main__':
             engine.add_metric(server, Metric(tag='health_http_status', time=int(time.time()), value=health_obj.http_status, unit='boolean'))
             engine.add_metric(server, Metric(tag='health_packet_loss', time=int(time.time()), value=health_obj.packet_loss, unit='percent'))
             engine.add_metric(server, Metric(tag='health_rtt', time=int(time.time()), value=health_obj.rtt, unit='ms'))
-            time.sleep(settings.INTERVAL)
+            time.sleep(settings.HEALTH_INTERVAL)
 
     for thread in threads:  # todo: Gracefull join threads?
         thread.join()

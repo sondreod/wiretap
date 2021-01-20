@@ -67,7 +67,7 @@ class Processes:
         timestamp = next(x)
         for line in x:
             if line.endswith(' nginx'):
-                yield Metric(tag='process', time=timestamp, value='nginx', unit='process')
+                yield Metric(tag='process', time=timestamp, value='nginx', unit='process', agg_type='nop')
 
 
 class Cpu:
@@ -108,18 +108,18 @@ class Network:
             rx, packets, errors, dropped, overrun, mcast = \
                 map(lambda x: int(x)/60, re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", rx_line).groups())
             if rx > 0:
-                yield Metric(tag=f'network_{nic_name}_rx_bytes', time=timestamp, value=rx, unit='bytes')
-                yield Metric(tag=f'network_{nic_name}_rx_packets', time=timestamp, value=packets, unit='packets')
-                yield Metric(tag=f'network_{nic_name}_rx_errors', time=timestamp, value=errors, unit='errors')
-                yield Metric(tag=f'network_{nic_name}_rx_dropped', time=timestamp, value=dropped, unit='packets')
+                yield Metric(tag=f'network_{nic_name}_rx_bytes', time=timestamp, value=rx, unit='bytes', agg_type='count')
+                yield Metric(tag=f'network_{nic_name}_rx_packets', time=timestamp, value=packets, unit='packets', agg_type='count')
+                yield Metric(tag=f'network_{nic_name}_rx_errors', time=timestamp, value=errors, unit='errors', agg_type='count')
+                yield Metric(tag=f'network_{nic_name}_rx_dropped', time=timestamp, value=dropped, unit='packets', agg_type='count')
 
             tx, packets, errors, dropped, carrier, collsns = \
                 map(lambda x: int(x)/60, re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", tx_line).groups())
             if tx > 0:
-                yield Metric(tag=f'network_{nic_name}_tx_bytes', time=timestamp, value=tx, unit='bytes')
-                yield Metric(tag=f'network_{nic_name}_tx_packets', time=timestamp, value=packets, unit='packets')
-                yield Metric(tag=f'network_{nic_name}_tx_errors', time=timestamp, value=errors, unit='errors')
-                yield Metric(tag=f'network_{nic_name}_tx_dropped', time=timestamp, value=dropped, unit='packets')
+                yield Metric(tag=f'network_{nic_name}_tx_bytes', time=timestamp, value=tx, unit='bytes', agg_type='count')
+                yield Metric(tag=f'network_{nic_name}_tx_packets', time=timestamp, value=packets, unit='packets', agg_type='count')
+                yield Metric(tag=f'network_{nic_name}_tx_errors', time=timestamp, value=errors, unit='errors', agg_type='count')
+                yield Metric(tag=f'network_{nic_name}_tx_dropped', time=timestamp, value=dropped, unit='packets', agg_type='count')
 
 class JournalCtl:
     command = r"journalctl -n 1000 -o json --no-pager"
@@ -139,6 +139,7 @@ class JournalCtl:
                     print(m.get('value'))
                     yield Metric(time=line.timestamp,
                                  tag=m.get('tag', cfg.get('tag')),
+                                 agg_type=m.get('agg_type', cfg.get('agg_type')),
                                  unit=m.get('unit', cfg.get('unit')),
                                  value=m.get('value', cfg.get('value')))
         return []

@@ -13,7 +13,8 @@ class Settings(BaseSettings):
     INFLUX_ORG: str = "test"
     INFLUX_BUCKET: str = "wiretap"
 
-    INTERVAL: int = Field(60, description="Approx. interval in seconds between metric collection")
+    COLLECTION_INTERVAL: int = Field(60, description="Approx. interval in seconds between metric collection")
+    HEALTH_INTERVAL: int = Field(60, description="Approx. interval in seconds between health check")
 
 
 settings = Settings()
