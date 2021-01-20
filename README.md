@@ -4,9 +4,9 @@
 
 This is work in progress.
 
-Simple agentless metric and log collector for unix systems without the need for sudo on collected system.
+Simple agentless metric and log collector for Debian based systems without the need for sudo on collected system.
 
-####Collectors for
+#### Collectors for
 - CPU utilization
 - Disk usage
 - Memory usage
