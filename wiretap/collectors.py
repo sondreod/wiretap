@@ -28,6 +28,7 @@ class Memory:
 
 class DiskActivity:
     # cat /proc/diskstats
+    # https://www.kernel.org/doc/Documentation/block/stat.txt
     pass
 
 class Disk:
@@ -37,7 +38,7 @@ class Disk:
     def run(x, config=None):
         df_output, timestamp = list(x)
         avail, used, timestamp =\
-            map(int, [*re.match(r'(\d{3,20})M (\d{3,20})M.+', df_output).groups(),
+            map(int, [*re.match(r'(\d{3,20})M\s+(\d{3,20})M.+', df_output).groups(),
                      timestamp])
         return [
             Metric(tag='diskspace_total', time=timestamp, value=avail, unit='MB'),
@@ -70,7 +71,7 @@ class Cpu:
                 cpus = int(line[-4:])
         cpu_averages = map(float, line.split('load average: ')[1].replace(',', '.').split('. '))
         avg_1, avg_5, avg_15 = map(lambda x: x/cpus, cpu_averages)
-        assert 0 < avg_1 < 1
+        assert 0 <= avg_1 <= 1
         return [
             Metric(tag='cpu_usage', time=timestamp, value=avg_1, unit='%'),
             Metric(tag='cpu_free', time=timestamp, value=1-avg_1, unit='%'),
