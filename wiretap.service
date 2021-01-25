@@ -6,7 +6,7 @@ After=multi-user.target
 Type=simple
 ExecStart=/opt/wiretap/venv/bin/python /opt/wiretap/main.py
 #StandardInput=tty-force
+WorkingDirectory=/opt/wiretap
 
 [Install]
 WantedBy=multi-user.target
-
