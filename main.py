@@ -15,7 +15,7 @@ from wiretap.config import settings
 from wiretap.remote import Remote
 from wiretap import collectors
 from wiretap.schemas import Metric
-from wiretap.utils import read_file, read_config, write_config
+from wiretap.utils import read_file, read_config, write_config, read_inventory
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s / %(name)s: %(message)s')
 log = logging.getLogger("root")
@@ -28,11 +28,6 @@ ALL = [collectors.Cpu,
        #collectors.Files
        ]
 
-inventory = [
-    schemas.Server(name="Test1", host="192.168.1.127", username="ubuntu"),
-    #schemas.Server(name="localhost", host="localhost", username="ubuntu"),
-]
-
 
 class Wiretap:
 
@@ -40,12 +35,19 @@ class Wiretap:
         self.hashes = set(read_config('hashes'))
         self.logs = read_file('logs')
         self.config = read_config('config')
+        self.inventory = read_inventory()
         self.metrics = []
-        self.client = InfluxDBClient(url="http://localhost:8086", token=settings.INFLUX_TOKEN)
+        self.client = InfluxDBClient(url=settings.INFLUX_HOST, token=settings.INFLUX_TOKEN)
         self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
         self.diffs = {}
         self.diff_lock = threading.Lock()
         self.file_lock = threading.Lock()
+
+        welcome = ("\nWiretap:\n\nYour inventory:\n")
+        for item in self.inventory:
+            welcome += f"   {item}\n"
+
+        log.error(welcome)
 
     def aggregate_diff(self, key, value):
         last = self.diffs.get(key)
@@ -68,13 +70,14 @@ class Wiretap:
 
         if self.add_hash(hash(str(point.__dict__))):
             self.add_point_to_db(point)
+        log.error(metric)
+        wri
 
     def add_hash(self, hash: int):
+        """ Returns true if hash is new, otherwise false. New hashes are added to the list"""
         if hash in self.hashes:
             return False
         self.hashes.add(hash)
-        with self.file_lock:
-            write_config('hashes', list(self.hashes))
         return True
 
     def add_point_to_db(self, point):
@@ -100,17 +103,15 @@ if __name__ == '__main__':
 
 
     engine = Wiretap()
-    engine.add_hash(int(uuid.uuid4()))
-
     threads = list()
 
-    for server in inventory:
+    for server in engine.inventory:
         x = threading.Thread(target=remote_execution, args=(server, engine), daemon=True)
         threads.append(x)
         x.start()
 
     while True:
-        for server in inventory:
+        for server in engine.inventory:
             health_obj = health_check(server.host)
             engine.add_metric(server, Metric(tag='health_http_status', time=int(time.time()), value=health_obj.http_status, unit='boolean'))
             engine.add_metric(server, Metric(tag='health_packet_loss', time=int(time.time()), value=health_obj.packet_loss, unit='percent'))

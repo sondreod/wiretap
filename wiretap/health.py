@@ -41,7 +41,7 @@ def ping(host: str, count: int = 4, timeout: int = 10) -> Tuple[int, float]:
 
 @validate_arguments
 def health_check(host: str) -> HealthResponse:
-    return HealthResponse(http(f"http://{host}", timeout=1), *ping(host, count=4, timeout=5))
+    return HealthResponse(http(f"http://{host}", timeout=1), *ping(host, count=1, timeout=5))
 
 
 if __name__ == '__main__':
