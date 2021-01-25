@@ -1,6 +1,15 @@
 import json
+from typing import List
 from pathlib import Path
 from wiretap.config import settings
+from pydantic import parse_file_as
+from wiretap.schemas import Server
+
+def read_inventory():
+    try:
+        return parse_file_as(List[Server], settings.inventory_file)
+    except Exception:
+        raise RuntimeError(f'Could not read inventory file: {settings.inventory_file}')
 
 
 def read_config(prop):
