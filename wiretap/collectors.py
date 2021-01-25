@@ -82,7 +82,10 @@ class Cpu:
                 cpus = int(line[-4:])
         cpu_averages = map(float, line.split('load average: ')[1].replace(',', '.').split('. '))
         avg_1, avg_5, avg_15 = map(lambda x: x/cpus, cpu_averages)
-        assert 0 <= avg_1 <= 1
+        try:
+            assert 0 <= avg_1 <= 1
+        except AssertionError:
+            return []
         return [
             Metric(tag='cpu_usage', time=timestamp, value=avg_1, unit='%'),
             Metric(tag='cpu_free', time=timestamp, value=1-avg_1, unit='%'),
@@ -122,7 +125,7 @@ class Network:
                 yield Metric(tag=f'network_{nic_name}_tx_dropped', time=timestamp, value=dropped, unit='packets', agg_type='count')
 
 class JournalCtl:
-    command = r"journalctl -n 1000 -o json --no-pager"
+    command = r"journalctl -n 2000 -o json --no-pager"
 
     @staticmethod
     def run(x, config=None):
@@ -131,16 +134,13 @@ class JournalCtl:
         ) for x in x]
 
         for line in log_records:
-            return None
-            for cfg in config:
-                "^New session \d+ of user (?P<value>[a-z]+)"
-                m = re.match(cfg.get('regex'), line.message)
-                if m := m.groupdict():
-                    print(m.get('value'))
-                    yield Metric(time=line.timestamp,
-                                 tag=m.get('tag', cfg.get('tag')),
-                                 agg_type=m.get('agg_type', cfg.get('agg_type')),
-                                 unit=m.get('unit', cfg.get('unit')),
-                                 value=m.get('value', cfg.get('value')))
-        return []
-
+            for rule in config.get('rules'):
+                m = re.match(rule.get('regex'), line.message)
+                if m:
+                    if m := m.groupdict():
+                        metric = Metric(tag=rule.get('tag'), time=int(str(line.timestamp)[:-6]))
+                        if tag := m.get('tag'):
+                            metric.tag = tag
+                        if value := m.get('value'):
+                            metric.value = value
+                        yield metric

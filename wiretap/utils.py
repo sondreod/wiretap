@@ -12,12 +12,12 @@ def read_inventory():
         raise RuntimeError(f'Could not read inventory file: {settings.inventory_file}')
 
 
-def read_config(prop):
-    path = Path(settings.base_path, prop)
-    if not path.is_file():
-        write_config(prop, [])
-    with open(path, 'r') as fd:
-        return json.load(fd)
+def read_config():
+    try:
+        with open(settings.config_file, 'r') as fd:
+            return json.load(fd)
+    except Exception:
+        raise RuntimeError(f'Could not read config file: {settings.config_file}')
 
 
 def write_config(prop, data):
