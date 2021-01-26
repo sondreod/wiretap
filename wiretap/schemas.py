@@ -17,10 +17,11 @@ class LogRecord(Record):
     transport: str = Field(..., alias='_TRANSPORT')
     hostname: str = Field(..., alias='_HOSTNAME')
     boot_id: str = Field(..., alias='_BOOT_ID')
+    cursor: str = Field(..., alias='__CURSOR')
 
 class Metric(BaseModel):
     tag: str
     time: int
     value: Any
-    unit: str
+    unit: Optional[str]
     agg_type: str = Field("mean", description="The aggregation function (if any) to use when downsampling metrics")

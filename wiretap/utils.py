@@ -5,6 +5,27 @@ from wiretap.config import settings
 from pydantic import parse_file_as
 from wiretap.schemas import Server
 
+
+def keyvalue_get(key: str):
+    path = Path(settings.base_path, 'keyvalue.json')
+    if path.is_file():
+        with open(path, 'r') as fd:
+            data = json.load(fd)
+            return data.get(key)
+    return False
+
+
+def keyvalue_set(key: str, value: str):
+    path = Path(settings.base_path, 'keyvalue.json')
+    data = {}
+    if path.is_file():
+        with open(path, 'r') as fd:
+            data = json.load(fd)
+    data[key] = value
+    with open(path, 'w') as fd:
+        json.dump(data, fd, indent=2)
+
+
 def read_inventory():
     try:
         return parse_file_as(List[Server], settings.inventory_file)
@@ -20,24 +41,19 @@ def read_config():
         raise RuntimeError(f'Could not read config file: {settings.config_file}')
 
 
-def write_config(prop, data):
-    with open(Path(settings.base_path, prop), 'w') as fd:
-        json.dump(data, fd)
-
-
-def read_file(prop):
-    path = Path(settings.base_path, prop)
+def read_file(filename):
+    path = Path(settings.base_path, filename)
     if not path.is_file():
-        write_file(prop, '')
+        write_file(filename, '')
     with open(path, 'r') as fd:
         return fd.read().splitlines()
 
 
-def append_file(prop, data: str):
-    with open(Path(settings.base_path, prop), 'a') as fd:
+def append_file(filename, data: str):
+    with open(Path(settings.base_path, filename), 'a') as fd:
         fd.writelines(data)
 
 
-def write_file(prop, data: str):
-    with open(Path(settings.base_path, prop), 'w') as fd:
+def write_file(filename, data: str):
+    with open(Path(settings.base_path, filename), 'w') as fd:
         fd.writelines(data)

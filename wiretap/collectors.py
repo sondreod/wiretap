@@ -2,11 +2,15 @@ import re
 import json
 
 from wiretap.schemas import Metric
+from wiretap.utils import keyvalue_set, keyvalue_get
 from wiretap import schemas
 
 
 class Memory:
-    command = r"date +%s && free -m"
+    @staticmethod
+    def command():
+        return r"date +%s && free -m"
+
 
     @staticmethod
     def run(x, config=None):
@@ -32,7 +36,10 @@ class DiskActivity:
     pass
 
 class Disk:
-    command = r"df --output=avail,used,pcent,target -BM | egrep '/$' && date +%s"
+    @staticmethod
+    def command():
+        return r"df --output=avail,used,pcent,target -BM | egrep '/$' && date +%s"
+
 
     @staticmethod
     def run(x, config=None):
@@ -49,7 +56,9 @@ class Disk:
 
 
 class Files:
-    command = r"date +%s && ls arg0"
+    @staticmethod
+    def command():
+        return r"date +%s && ls arg0"
 
     @staticmethod
     def run(x, config=None):
@@ -60,7 +69,9 @@ class Files:
 
 
 class Processes:
-    command = r"date +%s && ps -A"
+    @staticmethod
+    def command():
+        return r"date +%s && ps -A"
 
     @staticmethod
     def run(x, config=None):
@@ -71,7 +82,9 @@ class Processes:
 
 
 class Cpu:
-    command = r"date +%s && lscpu && uptime"
+    @staticmethod
+    def command():
+        return r"date +%s && lscpu && uptime"
 
     @staticmethod
     def run(x, config=None):
@@ -94,7 +107,9 @@ class Cpu:
 
 
 class Network:
-    command = r"date +%s && ip -s link"
+    @staticmethod
+    def command():
+        return r"date +%s && ip -s link"
 
     @staticmethod
     def run(x, config=None):
@@ -124,14 +139,26 @@ class Network:
                 yield Metric(tag=f'network_{nic_name}_tx_errors', time=timestamp, value=errors, unit='errors', agg_type='count')
                 yield Metric(tag=f'network_{nic_name}_tx_dropped', time=timestamp, value=dropped, unit='packets', agg_type='count')
 
+
 class JournalCtl:
-    command = r"journalctl -n 2000 -o json --no-pager"
+    @staticmethod
+    def command():
+        cursor = keyvalue_get('journal_cursor')
+        if cursor:
+            return f'journalctl -o json --no-pager --output-fields="MESSAGE,_TRANSPORT,_HOSTNAME,_BOOT_ID" --after-cursor="{cursor}"'
+        else:
+            return f'journalctl -o json --no-pager --output-fields="MESSAGE,_TRANSPORT,_HOSTNAME,_BOOT_ID" -n 100000'
 
     @staticmethod
     def run(x, config=None):
         log_records = [schemas.LogRecord(
             **json.loads(x)
         ) for x in x]
+        if log_records:
+            keyvalue_set('journal_cursor', log_records[-1].cursor)
+            for l in log_records:
+                print(l)
+
 
         for line in log_records:
             for rule in config.get('rules'):
@@ -144,3 +171,4 @@ class JournalCtl:
                         if value := m.get('value'):
                             metric.value = value
                         yield metric
+
