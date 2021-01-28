@@ -21,7 +21,11 @@ class Remote:
 
     def run(self, collector):
         """ Executes the *collector* on the remote, using the config from the *server*."""
-        command = self._eval_variables_in_command(collector.command(), self.config)
+        command = collector.command()
+        config = self.config.get(collector.__name__.lower())
+        if not config:
+            config = {}
+        config['name'] = self.server.name
         if not self._is_localhost():
             server_response = self.client.run_command(command)
             if stderr := list(server_response.stderr):
@@ -29,19 +33,12 @@ class Remote:
             text_response = server_response.stdout
         else:
             text_response = (x for x in subprocess.check_output(command, shell=True, text=True).splitlines())
-        return collector.run(text_response, self.config.get(collector.__name__.lower()))
+        return collector.run(text_response, config)
 
     def _establish_connection(self):
         self.client = SSHClient(self.server.host,
                                 user=self.server.username,
                                 pkey=settings.pkey_path)
-
-    @staticmethod
-    def _eval_variables_in_command(command, config):
-        if config.get('args'):
-            for n, arg in enumerate(config.get('args')):
-                command.replace(f'arg{n}', arg)
-        return command
 
     def _is_localhost(self):
         return self.server.host in ['localhost', '127.0.0.1']
