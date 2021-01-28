@@ -8,7 +8,8 @@ class Settings(BaseSettings):
     pkey_path: str = path.expanduser('~/.ssh/id_rsa')
     config_file: str = str(Path(base_path, 'config.json').absolute())
     inventory_file: str = str(Path(base_path, 'inventory.json').absolute())
-    hash_path: str = str(Path(base_path, 'seen_hashes').absolute())
+    hash_file: str = str(Path(base_path, 'hashes.json').absolute())
+    metric_file: str = str(Path(base_path, 'metrics.jsonl').absolute())
 
     INFLUX_TOKEN: str = "wE2MepBauGjKasjUy-B4kr74gaUkHuHwg37gcegQksA8zmiWqZ6QwV3t7NsD6-HrD6ljJtIrIJtfMtl2y4Gulg=="
     INFLUX_ORG: str = "test"
