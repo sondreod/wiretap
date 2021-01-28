@@ -1,5 +1,7 @@
 import re
 import json
+import time
+import datetime
 
 from wiretap.schemas import Metric
 from wiretap.utils import keyvalue_set, keyvalue_get
@@ -65,6 +67,26 @@ class Files:
         timestamp = next(x)
 
         files = len(x[1:])
+
+        #return Metric(tag='diskspace_percent', time=timestamp, value=round(used/avail, 2), unit='%')
+
+
+class Logs:
+    @staticmethod
+    def command():
+        return r"cat /var/log/nginx/access.log"
+
+    @staticmethod
+    def run(x, config=None):
+        lineformat = re.compile( r"""(?P<ipaddress>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) - - \[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] ((\"(?P<method>[A-Z]+) )(?P<url>.+)(http\/1\.1")) (?P<statuscode>\d{3}) (?P<bytessent>\d+) (?P<refferer>-|"([^"]+)") (["](?P<useragent>[^"]+)["])""", re.IGNORECASE)
+        for line in x:
+            if m := re.search(lineformat, line):
+                if m := m.groupdict():
+                    timestamp = int(datetime.datetime.strptime(m.get('dateandtime'), "%d/%b/%Y:%H:%M:%S %z").timestamp())
+                    yield Metric(tag='pageview_'+m.get('url'), time=timestamp, value=1, unit='page')
+
+
+
         #return Metric(tag='diskspace_percent', time=timestamp, value=round(used/avail, 2), unit='%')
 
 
@@ -94,14 +116,14 @@ class Cpu:
             if line.startswith('CPU(s):'):
                 cpus = int(line[-4:])
         cpu_averages = map(float, line.split('load average: ')[1].replace(',', '.').split('. '))
-        avg_1, avg_5, avg_15 = map(lambda x: x/cpus, cpu_averages)
+        avg_1, avg_5, avg_15 = map(lambda y: round(y/cpus, 2), cpu_averages)
         try:
             assert 0 <= avg_1 <= 1
         except AssertionError:
             return []
         return [
             Metric(tag='cpu_usage', time=timestamp, value=avg_1, unit='%'),
-            Metric(tag='cpu_free', time=timestamp, value=1-avg_1, unit='%'),
+            Metric(tag='cpu_free', time=timestamp, value=round(1-avg_1, 4), unit='%'),
             Metric(tag='cpu_cores', time=timestamp, value=cpus, unit='%'),
         ]
 
@@ -124,7 +146,7 @@ class Network:
             rx_line = result[pos+3]
             tx_line = result[pos+5]
             rx, packets, errors, dropped, overrun, mcast = \
-                map(lambda x: int(x)/60, re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", rx_line).groups())
+                map(lambda x: int(x)//60, re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", rx_line).groups())
             if rx > 0:
                 yield Metric(tag=f'network_{nic_name}_rx_bytes', time=timestamp, value=rx, unit='bytes', agg_type='count')
                 yield Metric(tag=f'network_{nic_name}_rx_packets', time=timestamp, value=packets, unit='packets', agg_type='count')
@@ -132,7 +154,7 @@ class Network:
                 yield Metric(tag=f'network_{nic_name}_rx_dropped', time=timestamp, value=dropped, unit='packets', agg_type='count')
 
             tx, packets, errors, dropped, carrier, collsns = \
-                map(lambda x: int(x)/60, re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", tx_line).groups())
+                map(lambda x: int(x)//60, re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", tx_line).groups())
             if tx > 0:
                 yield Metric(tag=f'network_{nic_name}_tx_bytes', time=timestamp, value=tx, unit='bytes', agg_type='count')
                 yield Metric(tag=f'network_{nic_name}_tx_packets', time=timestamp, value=packets, unit='packets', agg_type='count')
@@ -143,32 +165,43 @@ class Network:
 class JournalCtl:
     @staticmethod
     def command():
+        command = 'journalctl -o json --no-pager --output-fields="MESSAGE,_TRANSPORT,_HOSTNAME,_BOOT_ID"'
         cursor = keyvalue_get('journal_cursor')
         if cursor:
-            return f'journalctl -o json --no-pager --output-fields="MESSAGE,_TRANSPORT,_HOSTNAME,_BOOT_ID" --after-cursor="{cursor}"'
+            return f'{command} --after-cursor="{cursor}"'
         else:
-            return f'journalctl -o json --no-pager --output-fields="MESSAGE,_TRANSPORT,_HOSTNAME,_BOOT_ID" -n 100000'
+            return f'{command} -n 100000'
 
     @staticmethod
     def run(x, config=None):
         log_records = [schemas.LogRecord(
             **json.loads(x)
         ) for x in x]
-        if log_records:
-            keyvalue_set('journal_cursor', log_records[-1].cursor)
-            for l in log_records:
-                print(l)
 
-
+        keyname = f"boot_id_{config.get('name')}"
+        bootid = keyvalue_get(keyname)
         for line in log_records:
+            timestamp = int(str(line.timestamp)[:-6])
+            if bootid != line.boot_id:
+                if bootid:
+                    yield Metric(tag='reboot', agg_type='count', value=1, time=timestamp)
+                keyvalue_set(keyname, line.boot_id)
+                bootid = keyvalue_get(keyname)
             for rule in config.get('rules'):
                 m = re.match(rule.get('regex'), line.message)
                 if m:
                     if m := m.groupdict():
-                        metric = Metric(tag=rule.get('tag'), time=int(str(line.timestamp)[:-6]))
+                        metric = Metric(tag=rule.get('tag'),
+                                        agg_type=rule.get('agg_type'),
+                                        value=1,
+                                        time=timestamp)
                         if tag := m.get('tag'):
                             metric.tag = tag
+                        if name := m.get('name'):
+                            metric.name = name
                         if value := m.get('value'):
                             metric.value = value
                         yield metric
 
+        if log_records:
+            keyvalue_set('journal_cursor', log_records[-1].cursor)
