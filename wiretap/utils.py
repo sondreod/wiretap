@@ -40,20 +40,35 @@ def read_config():
     except Exception:
         raise RuntimeError(f'Could not read config file: {settings.config_file}')
 
+def get_hashes():
+    if not Path(settings.hash_file).is_file():
+        set_hashes([])
+    try:
+        with open(settings.hash_file, 'r') as fd:
+            return set(json.load(fd))
+    except Exception:
+        raise RuntimeError(f'Could not read hash file: {settings.hash_file}')
 
-def read_file(filename):
-    path = Path(settings.base_path, filename)
-    if not path.is_file():
-        write_file(filename, '')
+
+def set_hashes(hashes: list):
+    with open(settings.hash_file, 'w') as fd:
+        json.dump(list(hashes), fd)
+
+def read_file(path):
+    if not Path(path).is_file():
+        write_file(path, [''])
     with open(path, 'r') as fd:
         return fd.read().splitlines()
 
 
-def append_file(filename, data: str):
-    with open(Path(settings.base_path, filename), 'a') as fd:
+def append_file(path, data: list):
+    if not Path(path).is_file():
+        write_file(path, [''])
+    with open(path, 'a') as fd:
+        data = map(lambda x: x+'\n', data)
         fd.writelines(data)
 
 
-def write_file(filename, data: str):
-    with open(Path(settings.base_path, filename), 'w') as fd:
+def write_file(path, data: list):
+    with open(path, 'w') as fd:
         fd.writelines(data)
