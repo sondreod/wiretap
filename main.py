@@ -23,7 +23,7 @@ ALL_COLLECTORS = [collectors.Cpu,
                   collectors.Network,
                   collectors.Disk,
                   collectors.JournalCtl,
-                  #collectors.Files,
+                  collectors.Files,
                   #collectors.Logs,
                   ]
 
@@ -72,6 +72,7 @@ class Wiretap:
         if self.add_hash(hash(str(point.__dict__))):
             self.add_point_to_db(point)
             self.metrics.append(metric.json())
+        print(metric)
 
     def add_hash(self, hash: int):
         """ Returns true if hash is new, otherwise false. New hashes are added to the list"""

@@ -21,11 +21,12 @@ class Remote:
 
     def run(self, collector):
         """ Executes the *collector* on the remote, using the config from the *server*."""
-        command = collector.command()
         config = self.config.get(collector.__name__.lower())
         if not config:
             config = {}
         config['name'] = self.server.name
+
+        command = collector.command(config)
         if not self._is_localhost():
             server_response = self.client.run_command(command)
             if stderr := list(server_response.stderr):

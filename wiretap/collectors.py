@@ -10,7 +10,7 @@ from wiretap import schemas
 
 class Memory:
     @staticmethod
-    def command():
+    def command(config=None):
         return r"date +%s && free -m"
 
 
@@ -39,7 +39,7 @@ class DiskActivity:
 
 class Disk:
     @staticmethod
-    def command():
+    def command(config=None):
         return r"df --output=avail,used,pcent,target -BM | egrep '/$' && date +%s"
 
 
@@ -59,21 +59,32 @@ class Disk:
 
 class Files:
     @staticmethod
-    def command():
-        return r"date +%s && ls arg0"
+    def command(config=None):
+        command = r"date +%s"
+        if rules := config.get('rules'):
+            for rule in rules:
+                if rule.get('hosts'):
+                    if config.get('name') not in rule.get('hosts'):
+                        continue
+                command += f" && echo '{rule.get('tag')}'; ls {rule.get('path')} | wc -l"
+
+        return command
 
     @staticmethod
     def run(x, config=None):
         timestamp = next(x)
-
-        files = len(x[1:])
-
-        #return Metric(tag='diskspace_percent', time=timestamp, value=round(used/avail, 2), unit='%')
+        for tag, count in zip(*[x] * 2):  # Sjukt
+            metric = Metric(tag=tag,
+                            agg_type="mean",
+                            unit="files",
+                            value=int(count),
+                            time=timestamp)
+            yield metric
 
 
 class Logs:
     @staticmethod
-    def command():
+    def command(config=None):
         return r"cat /var/log/nginx/access.log"
 
     @staticmethod
@@ -85,14 +96,9 @@ class Logs:
                     timestamp = int(datetime.datetime.strptime(m.get('dateandtime'), "%d/%b/%Y:%H:%M:%S %z").timestamp())
                     yield Metric(tag='pageview_'+m.get('url'), time=timestamp, value=1, unit='page')
 
-
-
-        #return Metric(tag='diskspace_percent', time=timestamp, value=round(used/avail, 2), unit='%')
-
-
 class Processes:
     @staticmethod
-    def command():
+    def command(config=None):
         return r"date +%s && ps -A"
 
     @staticmethod
@@ -105,7 +111,7 @@ class Processes:
 
 class Cpu:
     @staticmethod
-    def command():
+    def command(config=None):
         return r"date +%s && lscpu && uptime"
 
     @staticmethod
@@ -130,7 +136,7 @@ class Cpu:
 
 class Network:
     @staticmethod
-    def command():
+    def command(config=None):
         return r"date +%s && ip -s link"
 
     @staticmethod
@@ -164,7 +170,7 @@ class Network:
 
 class JournalCtl:
     @staticmethod
-    def command():
+    def command(config=None):
         command = 'journalctl -o json --no-pager --output-fields="MESSAGE,_TRANSPORT,_HOSTNAME,_BOOT_ID"'
         cursor = keyvalue_get('journal_cursor')
         if cursor:
