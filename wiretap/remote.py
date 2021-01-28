@@ -42,10 +42,3 @@ class Remote:
 
     def _is_localhost(self):
         return self.server.host in ['localhost', '127.0.0.1']
-
-if __name__ == '__main__':
-
-    remote = Remote(Server(name="Test1", host="192.168.1.127"), {})
-    collector_objects = [collectors.Cpu]
-    for c in collector_objects:
-        print(list(remote.run(c)))

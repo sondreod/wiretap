@@ -1,7 +1,6 @@
+import time
 import logging
 import threading
-import time
-import json
 
 from datetime import datetime
 
@@ -9,25 +8,24 @@ from pssh.exceptions import SessionError
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-from wiretap.health import health_check
-from wiretap import schemas
-from wiretap.config import settings
-from wiretap.remote import Remote
 from wiretap import collectors
+from wiretap.remote import Remote
 from wiretap.schemas import Metric
+from wiretap.config import settings
+from wiretap.health import health_check
 from wiretap.utils import read_config, read_inventory, get_hashes, set_hashes, append_file
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s / %(name)s: %(message)s')
 log = logging.getLogger("root")
 
-ALL = [collectors.Cpu,
-       collectors.Memory,
-       collectors.Network,
-       collectors.Disk,
-       collectors.JournalCtl,
-       #collectors.Files,
-       #collectors.Logs,
-       ]
+ALL_COLLECTORS = [collectors.Cpu,
+                  collectors.Memory,
+                  collectors.Network,
+                  collectors.Disk,
+                  collectors.JournalCtl,
+                  #collectors.Files,
+                  #collectors.Logs,
+                  ]
 
 
 class Wiretap:
@@ -46,7 +44,6 @@ class Wiretap:
         welcome = ("\nWiretap:\n\nYour inventory:\n")
         for item in self.inventory:
             welcome += f"   {item}\n"
-
         log.error(welcome)
 
     def aggregate_diff(self, key, value):
@@ -91,24 +88,26 @@ class Wiretap:
         append_file(settings.metric_file, self.metrics)
         self.metrics = []
 
+
 if __name__ == '__main__':
 
     def remote_execution(server, engine):
         remote = Remote(server, engine.config)
-        collector_objects = ALL
         while True:
             try:
-                for c in collector_objects:
+                for c in ALL_COLLECTORS:
+                    # todo: Check if config interval in current clock cycle
                     if response := remote.run(c):
                         for metric in response:
                             engine.add_metric(server, metric)
-                time.sleep(settings.COLLECTION_INTERVAL)
             except SessionError as e:
                 log.error(f"Session error: {e}")
                 time.sleep(900)
                 remote = Remote(server, engine.config)
             except Exception as e:
                 log.error(f"Error in remote execution. ({server.name}). ({type(e)}) {e}")
+
+            time.sleep(settings.COLLECTION_INTERVAL)
 
 
     engine = Wiretap()
