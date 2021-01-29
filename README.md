@@ -19,3 +19,12 @@ Simple agentless metric and log collector for Debian based systems without the n
 sudo apt install influxdb, python-influxdb, openssh-server
 ```
 
+
+### Development
+
+Compile to binary
+```bash
+source venv/binv/activate
+python3.8 -m nuitka --plugin-enable=pylint-warnings  --prefer-source-code --include-module=gevent.greenlet main.py
+```
+

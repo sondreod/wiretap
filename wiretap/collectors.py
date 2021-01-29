@@ -73,7 +73,7 @@ class Files:
     @staticmethod
     def run(x, config=None):
         timestamp = next(x)
-        for tag, count in zip(*[x] * 2):  # Sjukt
+        for tag, count in zip(*[x]*2):  # Sjukt
             metric = Metric(tag=tag,
                             agg_type="mean",
                             unit="files",
@@ -152,7 +152,7 @@ class Network:
             rx_line = result[pos+3]
             tx_line = result[pos+5]
             rx, packets, errors, dropped, overrun, mcast = \
-                map(lambda x: int(x)//60, re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", rx_line).groups())
+                map(lambda x: int(x)//config.get('interval', 60), re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", rx_line).groups())
             if rx > 0:
                 yield Metric(tag=f'network_{nic_name}_rx_bytes', time=timestamp, value=rx, unit='bytes', agg_type='count')
                 yield Metric(tag=f'network_{nic_name}_rx_packets', time=timestamp, value=packets, unit='packets', agg_type='count')
@@ -160,7 +160,7 @@ class Network:
                 yield Metric(tag=f'network_{nic_name}_rx_dropped', time=timestamp, value=dropped, unit='packets', agg_type='count')
 
             tx, packets, errors, dropped, carrier, collsns = \
-                map(lambda x: int(x)//60, re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", tx_line).groups())
+                map(lambda x: int(x)//config.get('interval', 60), re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", tx_line).groups())
             if tx > 0:
                 yield Metric(tag=f'network_{nic_name}_tx_bytes', time=timestamp, value=tx, unit='bytes', agg_type='count')
                 yield Metric(tag=f'network_{nic_name}_tx_packets', time=timestamp, value=packets, unit='packets', agg_type='count')
@@ -172,14 +172,15 @@ class JournalCtl:
     @staticmethod
     def command(config=None):
         command = 'journalctl -o json --no-pager --output-fields="MESSAGE,_TRANSPORT,_HOSTNAME,_BOOT_ID"'
-        cursor = keyvalue_get('journal_cursor')
+        cursor = keyvalue_get(f"journal_cursor_{config.get('name')}")
         if cursor:
             return f'{command} --after-cursor="{cursor}"'
         else:
-            return f'{command} -n 100000'
+            return f'{command} -n 100'
 
     @staticmethod
     def run(x, config=None):
+        x = list(x)
         log_records = [schemas.LogRecord(
             **json.loads(x)
         ) for x in x]
@@ -210,4 +211,4 @@ class JournalCtl:
                         yield metric
 
         if log_records:
-            keyvalue_set('journal_cursor', log_records[-1].cursor)
+            keyvalue_set(f"journal_cursor_{config.get('name')}", log_records[-1].cursor)

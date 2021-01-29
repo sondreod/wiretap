@@ -1,4 +1,6 @@
 import json
+import threading
+
 from typing import List
 from pathlib import Path
 from wiretap.config import settings
@@ -6,24 +8,28 @@ from pydantic import parse_file_as
 from wiretap.schemas import Server
 
 
+lock = threading.Lock()
+
 def keyvalue_get(key: str):
     path = Path(settings.base_path, 'keyvalue.json')
     if path.is_file():
-        with open(path, 'r') as fd:
-            data = json.load(fd)
-            return data.get(key)
+        with lock:
+            with open(path, 'r') as fd:
+                data = json.load(fd)
+                return data.get(key)
     return False
 
 
 def keyvalue_set(key: str, value: str):
     path = Path(settings.base_path, 'keyvalue.json')
     data = {}
-    if path.is_file():
-        with open(path, 'r') as fd:
-            data = json.load(fd)
-    data[key] = value
-    with open(path, 'w') as fd:
-        json.dump(data, fd, indent=2)
+    with lock:
+        if path.is_file():
+            with open(path, 'r') as fd:
+                data = json.load(fd)
+        data[key] = value
+        with open(path, 'w') as fd:
+            json.dump(data, fd, indent=2)
 
 
 def read_inventory():
@@ -72,3 +78,19 @@ def append_file(path, data: list):
 def write_file(path, data: list):
     with open(path, 'w') as fd:
         fd.writelines(data)
+
+
+def check_files():
+    """ Creates required files if not present """
+    if not Path(settings.inventory_file).is_file():
+        with open(settings.inventory_file, 'w') as fd:
+            json.dump([{"name": "Localhost", "host": "127.0.0.1"}], fd, indent=2)
+    if not Path(settings.hash_file).is_file():
+        with open(settings.hash_file, 'w') as fd:
+            json.dump([], fd)
+    if not Path(settings.config_file).is_file():
+        with open(settings.config_file, 'w') as fd:
+            json.dump({}, fd)
+    if not Path(settings.metric_file).is_file():
+        with open(settings.config_file, 'w') as fd:
+            fd.write("")

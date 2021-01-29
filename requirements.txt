@@ -1,4 +1,4 @@
 requests
 influxdb_client
-pydantic>=1.7.3
+pydantic[dotenv]
 parallel-ssh
