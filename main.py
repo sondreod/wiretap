@@ -6,7 +6,7 @@ import traceback
 from datetime import datetime
 
 from pssh.exceptions import SessionError
-from influxdb_client import InfluxDBClient, Point, WritePrecision
+from influxdb_client import InfluxDBClient, Point, WritePrecision, BucketRetentionRules, Bucket
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 from wiretap import collectors
@@ -37,9 +37,14 @@ class Wiretap:
         self.config = read_config()
         self.inventory = read_inventory()
         self.metrics = []
+        self.diffs = {}
+
         self.client = InfluxDBClient(url=settings.INFLUX_HOST, token=settings.INFLUX_TOKEN)
         self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
-        self.diffs = {}
+        self.query_api = self.client.query_api()
+        self.bucket_api = self.client.buckets_api()
+        self._db_check()
+
         self.diff_lock = threading.Lock()
         self.metric_lock = threading.Lock()
 
@@ -48,6 +53,7 @@ class Wiretap:
         for item in self.inventory:
             welcome += f"   {item}\n"
         log.error(welcome)
+
 
     def aggregate_diff(self, key, value):
         last = self.diffs.get(key)
@@ -98,9 +104,18 @@ class Wiretap:
     def _startup_check(self):
         check_files()
 
-        # Sjekk database kobling
-        # Sjekk database buckets
-        # Set retention policy
+    def _db_check(self):
+        buckets = [x.name for x in self.bucket_api.find_buckets().buckets]
+        assert settings.INFLUX_BUCKET_PREFIX in buckets
+
+        """ Fuckd library
+        if settings.INFLUX_BUCKET_PREFIX not in buckets:
+            self.bucket_api.create_bucket(settings.INFLUX_BUCKET_PREFIX,
+                                          retention_rules=BucketRetentionRules(type='expire', every_seconds=100000))
+        if settings.INFLUX_BUCKET_PREFIX+'_downsampled' not in buckets:
+            bucket = Bucket(name='ffdidd', retention_rules=BucketRetentionRules(type='expire', every_seconds=10000))
+            self.bucket_api.create_bucket(bucket)
+        """
 
 
 if __name__ == '__main__':
