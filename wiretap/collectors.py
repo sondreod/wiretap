@@ -194,21 +194,23 @@ class JournalCtl:
                     yield Metric(tag='reboot', agg_type='count', value=1, time=timestamp)
                 keyvalue_set(keyname, line.boot_id)
                 bootid = keyvalue_get(keyname)
-            for rule in config.get('rules'):
-                m = re.match(rule.get('regex'), line.message)
-                if m:
-                    if m := m.groupdict():
-                        metric = Metric(tag=rule.get('tag'),
-                                        agg_type=rule.get('agg_type'),
-                                        value=1,
-                                        time=timestamp)
-                        if tag := m.get('tag'):
-                            metric.tag = tag
-                        if name := m.get('name'):
-                            metric.name = name
-                        if value := m.get('value'):
-                            metric.value = value
-                        yield metric
+
+            if config.get('rules'):
+                for rule in config.get('rules'):
+                    m = re.match(rule.get('regex'), line.message)
+                    if m:
+                        if m := m.groupdict():
+                            metric = Metric(tag=rule.get('tag'),
+                                            agg_type=rule.get('agg_type'),
+                                            value=1,
+                                            time=timestamp)
+                            if tag := m.get('tag'):
+                                metric.tag = tag
+                            if name := m.get('name'):
+                                metric.name = name
+                            if value := m.get('value'):
+                                metric.value = value
+                            yield metric
 
         if log_records:
             keyvalue_set(f"journal_cursor_{config.get('name')}", log_records[-1].cursor)
