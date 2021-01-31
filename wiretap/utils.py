@@ -92,5 +92,5 @@ def check_files():
         with open(settings.config_file, 'w') as fd:
             json.dump({}, fd)
     if not Path(settings.metric_file).is_file():
-        with open(settings.config_file, 'w') as fd:
+
             fd.write("")
