@@ -34,7 +34,7 @@ def ping(host: str, count: int = 4, timeout: int = 10) -> Tuple[int, float]:
                               r'(?:(?:[0-9]*[.])?[0-9]+)\/'
                               r'((?:[0-9]*[.])?[0-9]+)\/(?:(?:[0-9]*[.])?[0-9]+) ms', ping_response).groups()[0])
     except AttributeError:
-        rtt = None
+        rtt = False
 
     return packet_loss, rtt
 

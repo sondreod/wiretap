@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Wiretap</title>
+    <meta charset="UTF-8">
+    <link rel="icon" href="static/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="static/semantic.min.css">
+</head>
+<body>
+<script src="static/vue.js"></script>
+
+<div id="app" class="ui container">
+    <h1 class="ui center aligned huge header">
+        Wiretap
+        <a v-if="connection" class="ui basic huge green label">Online</a>
+        <a v-if="!connection" class="ui basic huge red label">Offline</a>
+    </h1>
+    <div class="ui grid">
+        <div class="three column wide">
+            <h3><i class="icon server"></i> Inventory</h3>
+            <table class="ui celled large table">
+                <thead>
+                <tr>
+                    <th class="collapsing"><span class="ui white empty circular label"></span></th>
+                    <th class="collapsing">Name</th>
+                    <th class="collapsing">Host</th>
+                    <th></th>
+                    <th class="collapsing">Last ping</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="server in inventory" :key="server.name" :class="{'error': server.timestamp < (Math.floor(Date.now() / 1000)-60)}">
+                    <td class="collapsing">
+                        <span v-if="server.timestamp >= (Math.floor(Date.now() / 1000)-60)" class="ui green empty circular label"></span>
+                        <span v-if="server.timestamp < (Math.floor(Date.now() / 1000)-60)" class="ui red empty circular label"></span>
+                    </td>
+                    <td>{{ server.name }}</td>
+                    <td>{{ server.host }}</td>
+                    <td></td>
+                    <td>{{ server.timestamp === 0 ? '-' : new Date(server.timestamp * 1000).toTimeString().substring(0,8) }}</td>
+                </tr>
+                </tbody>
+            </table>
+                <div class="three column wide">
+                </div>
+            </div>
+                <a class="item" v-for="server in metrics" :key="server.name">
+                    <h4 class="ui header">{{ server}}</h4>
+                </a>
+        </div>
+        <div id="timestamp">({{ count }}) {{ timestamp }}</div>
+    </div>
+</body>
+
+
+<script>
+    const App = {
+        data() {
+            return {
+                inventory: [],
+                count: 0,
+                time: this.getNow(),
+                connection: false,
+            };
+        },
+        mounted: function () {
+            this.loadData();
+            // this.loadMetric();
+        },
+        methods: {
+            loadMetric: function () {
+                fetch("api/metrics").then((res) => {
+                    return res.json();
+                }).then((metrics) => {
+                    this.metrics = metrics;
+                    setTimeout(function () {
+                        this.loadMetric();
+                    }.bind(this), 10000);
+                }).catch(error => {
+                    console.log(error)
+                })
+            },
+            loadData: function () {
+                fetch("api/inventory").then((res) => {
+                    return res.json();
+                }).then((inventory) => {
+                    this.inventory = inventory;
+                    this.count += 1;
+                    this.time = this.getNow()
+                    this.connection = true
+                    setTimeout(function () {
+                        this.loadData();
+                    }.bind(this), 10000);
+                }).catch(error => {
+                    console.log(error)
+                    this.connection = false
+                })
+            },
+            getNow: function() {
+                const today = new Date();
+                // this.timestamp = today.toISOString().replace('T', ' ').split('.')[0] }
+                this.timestamp = today.toISOString().replace('T', ' ').split('.')[0] }
+        }
+    };
+    Vue.createApp(App).mount('#app')
+</script>
+
+<style>
+    #timestamp {
+        position: absolute;
+        top: 0;
+        right: 0;
+    }
+    #app {
+        margin:  1em auto;
+    }
+</style>
+</html>

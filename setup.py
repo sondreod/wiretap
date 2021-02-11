@@ -19,5 +19,9 @@ setuptools.setup(
         'pydantic[dotenv]',
         'requests',
         'parallel-ssh',
+        'uvicorn',
+        'fastapi',
+        'aiofiles'
+
     ]
 )

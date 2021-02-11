@@ -2,3 +2,6 @@ requests
 influxdb_client
 pydantic[dotenv]
 parallel-ssh
+uvicorn
+fastapi
+aiofiles

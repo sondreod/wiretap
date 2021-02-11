@@ -1,3 +1,4 @@
+import os
 import json
 import threading
 
@@ -92,5 +93,22 @@ def check_files():
         with open(settings.config_file, 'w') as fd:
             json.dump({}, fd)
     if not Path(settings.metric_file).is_file():
-
             fd.write("")
+
+
+def read_reverse_order(file_name: str):
+    with open(file_name, 'rb') as read_obj:
+        read_obj.seek(0, os.SEEK_END)
+        pointer_location = read_obj.tell()
+        buffer = bytearray()
+        while pointer_location >= 0:
+            read_obj.seek(pointer_location)
+            pointer_location = pointer_location -1
+            new_byte = read_obj.read(1)
+            if new_byte == b'\n':
+                yield buffer.decode()[::-1]
+                buffer = bytearray()
+            else:
+                buffer.extend(new_byte)
+        if len(buffer) > 0:
+            yield buffer.decode()[::-1]

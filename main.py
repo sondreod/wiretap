@@ -1,3 +1,4 @@
+import json
 import time
 import logging
 import threading
@@ -5,6 +6,10 @@ import traceback
 
 from datetime import datetime
 
+import uvicorn
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from pssh.exceptions import SessionError
 from influxdb_client import InfluxDBClient, Point, WritePrecision, BucketRetentionRules, Bucket
 from influxdb_client.client.write_api import SYNCHRONOUS
@@ -14,7 +19,7 @@ from wiretap.remote import Remote
 from wiretap.schemas import Metric
 from wiretap.config import settings
 from wiretap.health import health_check
-from wiretap.utils import read_config, read_inventory, get_hashes, set_hashes, append_file, check_files
+from wiretap.utils import read_config, read_inventory, get_hashes, set_hashes, append_file, check_files, read_reverse_order
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s / %(name)s: %(message)s')
 log = logging.getLogger("root")
@@ -117,6 +122,42 @@ class Wiretap:
             self.bucket_api.create_bucket(bucket)
         """
 
+app = FastAPI()
+app.mount("/static", StaticFiles(directory="web/static"), name="static")
+
+@app.get("/", response_class=HTMLResponse)
+def serve_front():
+    with open('web/index.html', 'r') as fd:
+        return str(fd.read())
+
+@app.get("/api/inventory")
+def serve_inventory():
+    inventory = []
+    temp = read_inventory()
+    for item in temp:
+        item = dict(item)
+        item["timestamp"] = 0
+        inventory.append(item)
+
+    for n, line in enumerate(read_reverse_order(settings.metric_file)):
+        if line:
+            line = json.loads(line)
+            if line.get('tag') == 'health_rtt':
+                for server in inventory:
+                    if server.get('name') == line.get('name'):
+                        if line.get('time') > server['timestamp']:
+                            server['timestamp'] = line.get('time')
+                            break
+        if n > 1000 or all(x.get('timestamp') > 0 for x in inventory):
+            break
+
+    return inventory
+
+@app.get("/api/metrics")
+def serve_metrics():
+    return read_inventory()
+
+
 
 if __name__ == '__main__':
 
@@ -161,20 +202,33 @@ if __name__ == '__main__':
         threads.append(x)
         x.start()
 
-    while True:
 
-        for server in engine.inventory:
-            health_obj = health_check(server.host)
-            engine.add_metric(server, Metric(tag='health_http_status', time=int(time.time()), value=health_obj.http_status, unit='boolean'))
-            engine.add_metric(server, Metric(tag='health_packet_loss', time=int(time.time()), value=health_obj.packet_loss, unit='percent'))
-            engine.add_metric(server, Metric(tag='health_rtt', time=int(time.time()), value=health_obj.rtt, unit='ms'))
+    def main_loop(engine):
+        while True:
+            for server in engine.inventory:
+                health_obj = health_check(server.host)
+                engine.add_metric(server, Metric(tag='health_http_status', time=int(time.time()), value=health_obj.http_status, unit='boolean'))
+                engine.add_metric(server, Metric(tag='health_packet_loss', time=int(time.time()), value=health_obj.packet_loss, unit='percent'))
+                if health_obj.rtt:
+                    engine.add_metric(server, Metric(tag='health_rtt', time=int(time.time()), value=health_obj.rtt, unit='ms'))
 
-        for thread in threads:
-            if not thread.is_alive():
-                log.error(f"{thread.name} has stopped!")
-        set_hashes(engine.hashes)
-        engine.append_metrics()
-        time.sleep(10)
+            for thread in threads:
+                if not thread.is_alive():
+                    log.error(f"{thread.name} has stopped!")
+            set_hashes(engine.hashes)
+            engine.append_metrics()
+            for _ in range(10):
+                time.sleep(1)
+
+    main_loop_thread = threading.Thread(target=main_loop,
+                         args=(engine,),
+                         name=f"thread_main")
+    threads.append(main_loop_thread)
+    main_loop_thread.start()
+
+    uvicorn.run("main:app", host='127.0.0.1', port=1337, workers=4)
+    main_loop_thread.join()
+    exit()
 
     for thread in threads:  # todo: Gracefull join threads?
         thread.join()
