@@ -16,8 +16,24 @@
         <a v-if="!connection" class="ui basic huge red label">Offline</a>
     </h1>
     <div class="ui grid">
-        <div class="three column wide">
-            <h3><i class="icon server"></i> Inventory</h3>
+        <div class="ui sixteen wide column">
+
+            <div class="ui two statistics" style="margin: 50px auto;">
+
+                <div class="statistic">
+                    <div class="value">{{ stats.metrics_count }}</div>
+                    <div class="label">Number of metrics</div>
+                </div>
+                <div class="statistic">
+                    <div class="value">{{ Math.round(stats.metrics_size/1e6) }} MB</div>
+                    <div class="label">Metrics size</div>
+                </div>
+
+            </div>
+
+        </div>
+            <div class="ui eight wide column">
+            <h2><i class="icon server"></i> Inventory ({{ inventory.length }})</h2>
             <table class="ui celled large table">
                 <thead>
                 <tr>
@@ -37,18 +53,46 @@
                     <td>{{ server.name }}</td>
                     <td>{{ server.host }}</td>
                     <td></td>
-                    <td>{{ server.timestamp === 0 ? '-' : new Date(server.timestamp * 1000).toTimeString().substring(0,8) }}</td>
+                    <td>{{ server.timestamp === 0 ? '-' : new Date(server.timestamp * 1000).toUTCString().substring(17,25) }}</td>
                 </tr>
                 </tbody>
             </table>
-                <div class="three column wide">
+
+            <h2><i class="icon sitemap"></i> Config </h2>
+
+                <div v-for="(value, key) in config" :key="config">
+
+                    <h3>{{ key }}</h3>
+                    <div v-for="(line, key_) in value" :key="line">
+                        <h6>{{ key_ }}</h6>
+                        <pre>{{ JSON.stringify(line, null, ' ') }}</pre>
+                    </div>
                 </div>
+                <div class="ui small basic inline button" @click="loadConfig()">Reload config</div>
             </div>
-                <a class="item" v-for="server in metrics" :key="server.name">
-                    <h4 class="ui header">{{ server}}</h4>
-                </a>
+        <div class="ui eight wide column">
+            <h2><i class="icon chart bar"></i> Metrics (last 25)</h2>
+            <table class="ui large single line table">
+                <thead>
+                <tr>
+                    <th class="collapsing">Name</th>
+                    <th class="collapsing">Tag</th>
+                    <th class="collapsing">Value</th>
+                    <th>Time</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-for="metric in metrics" :key="metric">
+                    <td>{{ metric.name }}</td>
+                    <td>{{ metric.tag }}</td>
+                    <td>{{ metric.value }} <span style="color: gray;">{{ metric.unit }}</span></td>
+                    <td>{{ new Date(metric.time * 1000).toISOString().replace('T', ' ').substring(0,19) }}</td>
+                </tr>
+                </tbody>
+            </table>
         </div>
-        <div id="timestamp">({{ count }}) {{ timestamp }}</div>
+    </div>
+    <div id="timestamp">({{ count }}) {{ timestamp }}</div>
     </div>
 </body>
 
@@ -58,6 +102,8 @@
         data() {
             return {
                 inventory: [],
+                metrics: [],
+                stats: {},
                 count: 0,
                 time: this.getNow(),
                 connection: false,
@@ -65,16 +111,39 @@
         },
         mounted: function () {
             this.loadData();
-            // this.loadMetric();
+            this.loadMetrics();
+            this.loadStats();
+            this.loadConfig();
         },
         methods: {
-            loadMetric: function () {
+            loadConfig: function () {
+                fetch("api/config").then((res) => {
+                    return res.json();
+                }).then((config) => {
+                    this.config = config;
+                }).catch(error => {
+                    console.log(error)
+                })
+            },
+            loadMetrics: function () {
                 fetch("api/metrics").then((res) => {
                     return res.json();
                 }).then((metrics) => {
                     this.metrics = metrics;
                     setTimeout(function () {
-                        this.loadMetric();
+                        this.loadMetrics();
+                    }.bind(this), 10000);
+                }).catch(error => {
+                    console.log(error)
+                })
+            },
+            loadStats: function () {
+                fetch("api/stats").then((res) => {
+                    return res.json();
+                }).then((stats) => {
+                    this.stats = stats;
+                    setTimeout(function () {
+                        this.loadStats();
                     }.bind(this), 10000);
                 }).catch(error => {
                     console.log(error)
