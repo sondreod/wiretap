@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from pssh.exceptions import SessionError
-from influxdb_client import InfluxDBClient, Point, WritePrecision, BucketRetentionRules, Bucket
+from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 from wiretap import collectors
@@ -19,7 +19,8 @@ from wiretap.remote import Remote
 from wiretap.schemas import Metric
 from wiretap.config import settings
 from wiretap.health import health_check
-from wiretap.utils import read_config, read_inventory, get_hashes, set_hashes, append_file, check_files, read_reverse_order
+from wiretap.utils import read_config,read_inventory, get_hashes, set_hashes, append_file, check_files,\
+    read_reverse_order, filestats
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s / %(name)s: %(message)s')
 log = logging.getLogger("root")
@@ -155,9 +156,28 @@ def serve_inventory():
 
 @app.get("/api/metrics")
 def serve_metrics():
-    return read_inventory()
+    for n, line in enumerate(read_reverse_order(settings.metric_file)):
+        if n <= 25:
+            if line:
+                try:
+                    yield json.loads(line)
+                except json.JSONDecodeError:
+                    pass
+        else:
+            break
+
+@app.get("/api/config")
+def serve_config():
+    return read_config()
 
 
+@app.get("/api/stats")
+def serve_stats():
+    linecount, filesize = map(int, filestats(settings.metric_file))
+    return {
+        "metrics_size": filesize,
+        "metrics_count": '{:,}'.format(linecount).replace(',',' ')
+    }
 
 if __name__ == '__main__':
 
@@ -208,7 +228,7 @@ if __name__ == '__main__':
             for server in engine.inventory:
                 health_obj = health_check(server.host)
                 engine.add_metric(server, Metric(tag='health_http_status', time=int(time.time()), value=health_obj.http_status, unit='boolean'))
-                engine.add_metric(server, Metric(tag='health_packet_loss', time=int(time.time()), value=health_obj.packet_loss, unit='percent'))
+                engine.add_metric(server, Metric(tag='health_packet_loss', time=int(time.time()), value=health_obj.packet_loss, unit='%'))
                 if health_obj.rtt:
                     engine.add_metric(server, Metric(tag='health_rtt', time=int(time.time()), value=health_obj.rtt, unit='ms'))
 

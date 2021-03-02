@@ -1,6 +1,7 @@
 import os
 import json
 import threading
+import subprocess
 
 from typing import List
 from pathlib import Path
@@ -96,8 +97,8 @@ def check_files():
             fd.write("")
 
 
-def read_reverse_order(file_name: str):
-    with open(file_name, 'rb') as read_obj:
+def read_reverse_order(filename: str):
+    with open(filename, 'rb') as read_obj:
         read_obj.seek(0, os.SEEK_END)
         pointer_location = read_obj.tell()
         buffer = bytearray()
@@ -112,3 +113,8 @@ def read_reverse_order(file_name: str):
                 buffer.extend(new_byte)
         if len(buffer) > 0:
             yield buffer.decode()[::-1]
+
+
+def filestats(filename: str):
+    response = (x for x in subprocess.check_output(f"wc -cl {filename}", shell=True, text=True).splitlines())
+    return next(response).strip().split(' ')[:2]
