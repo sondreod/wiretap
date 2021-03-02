@@ -28,3 +28,5 @@ source venv/binv/activate
 python3.8 -m nuitka --plugin-enable=pylint-warnings  --plugin-enable=gevent  --prefer-source-code --include-module=gevent.greenlet main.py --onefile
 ```
 
+### Ideas and links
+- [Luminare for automatic anomaly detection](https://zillow.github.io/luminaire/tutorial/dataprofiling.html)
