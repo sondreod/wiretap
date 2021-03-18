@@ -104,7 +104,7 @@ def cpu(config=None):
             if line.startswith('CPU(s):'):
                 cpus = int(line[-4:])
         cpu_averages = map(float, line.split('load average: ')[1].replace(',', '.').split('. '))
-        avg_1, avg_5, avg_15 = map(lambda y: round(y / cpus, 2), cpu_averages)
+        avg_1, avg_5, avg_15 = map(lambda y: round(y / cpus, 2), cpu_averages)  # Normalize to # of cores
         try:
             assert 0 <= avg_1 <= 1
         except AssertionError:
@@ -112,7 +112,7 @@ def cpu(config=None):
         yield from [
             Metric(tag='cpu_usage', time=timestamp, value=avg_1, unit='%'),
             Metric(tag='cpu_free', time=timestamp, value=round(1 - avg_1, 4), unit='%'),
-            Metric(tag='cpu_cores', time=timestamp, value=cpus, unit='%'),
+            Metric(tag='cpu_cores', time=timestamp, value=cpus, unit='cores'),
         ]
 
     yield command, run
@@ -128,16 +128,20 @@ def memory(config=None):
             if line.startswith('Mem:'):
                 total, used, free, shared, buffcached, avail = \
                     map(float, re.match(r"^Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", line).groups())
-                yield Metric(tag='memory_available', time=timestamp, value=avail, unit='MiB')
-                yield Metric(tag='memory_used', time=timestamp, value=used, unit='MiB')
-                yield Metric(tag='memory_total', time=timestamp, value=total, unit='MiB')
-                yield Metric(tag='memory_free', time=timestamp, value=total-used, unit='MiB')
+                yield from [
+                    Metric(tag='memory_available', time=timestamp, value=avail, unit='MiB'),
+                    Metric(tag='memory_used', time=timestamp, value=used, unit='MiB'),
+                    Metric(tag='memory_total', time=timestamp, value=total, unit='MiB'),
+                    Metric(tag='memory_free', time=timestamp, value=total-used, unit='MiB')
+                ]
             if line.startswith('Swap:'):
                 total, used, free = \
                     map(float, re.match(r"^Swap:\s+(\d+)\s+(\d+)\s+(\d+)", line).groups())
-                yield Metric(tag='swap_used', time=timestamp, value=used, unit='MiB')
-                yield Metric(tag='swap_total', time=timestamp, value=total, unit='MiB')
-                yield Metric(tag='swap_free', time=timestamp, value=total-used, unit='MiB')
+                yield from [
+                    Metric(tag='swap_used', time=timestamp, value=used, unit='MiB'),
+                    Metric(tag='swap_total', time=timestamp, value=total, unit='MiB'),
+                    Metric(tag='swap_free', time=timestamp, value=total-used, unit='MiB')
+                ]
 
     yield command, run
 
