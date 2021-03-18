@@ -25,14 +25,17 @@ from wiretap.utils import read_config,read_inventory, get_hashes, set_hashes, ap
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s / %(name)s: %(message)s')
 log = logging.getLogger("root")
 
-ALL_COLLECTORS = [collectors.Cpu,
-                  collectors.Memory,
-                  collectors.Network,
-                  collectors.Disk,
-                  collectors.JournalCtl,
-                  collectors.Files,
-                  #collectors.Logs
-                  ]
+ALL_COLLECTORS = [
+    collectors.journalctl,
+    collectors.cpu,
+    collectors.memory,
+    collectors.disk,
+    collectors.network,
+    #collectors.Disk,
+    #collectors.JournalCtl,
+    #collectors.Files,
+    #collectors.Logs
+]
 
 
 class Wiretap:
@@ -157,12 +160,11 @@ def serve_inventory():
 @app.get("/api/metrics")
 def serve_metrics():
     for n, line in enumerate(read_reverse_order(settings.metric_file)):
-        if n <= 25:
-            if line:
-                try:
-                    yield json.loads(line)
-                except json.JSONDecodeError:
-                    pass
+        if n <= 100 and line:
+            try:
+                yield json.loads(line)
+            except json.JSONDecodeError:
+                pass
         else:
             break
 
@@ -192,8 +194,9 @@ if __name__ == '__main__':
                     if config := engine.config.get(c.__name__.lower()):
                         interval = int(config.get('interval', 60))
                     if clock % interval == 0:
-                        if response := remote.run(c):
+                        for response in remote.run(c):
                             for metric in response:
+                                print(metric)
                                 engine.add_metric(server, metric)
 
             except SessionError as e:

@@ -37,7 +37,7 @@
             <table class="ui celled large table">
                 <thead>
                 <tr>
-                    <th class="collapsing"><span class="ui white empty circular label"></span></th>
+                    <th class="collapsing"><span class="ui black empty circular label"></span></th>
                     <th class="collapsing">Name</th>
                     <th class="collapsing">Host</th>
                     <th></th>
@@ -71,14 +71,14 @@
                 <div class="ui small basic inline button" @click="loadConfig()">Reload config</div>
             </div>
         <div class="ui eight wide column">
-            <h2><i class="icon chart bar"></i> Metrics (last 25)</h2>
-            <table class="ui large single line table">
+            <h2><i class="icon chart bar"></i> Metrics (last 100)</h2>
+            <table class="ui large single line fluid table">
                 <thead>
                 <tr>
                     <th class="collapsing">Name</th>
-                    <th class="collapsing">Tag</th>
+                    <th>Tag</th>
                     <th class="collapsing">Value</th>
-                    <th>Time</th>
+                    <th class="collapsing">Time</th>
                 </tr>
                 </thead>
                 <tbody>

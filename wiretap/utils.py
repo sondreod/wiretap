@@ -12,6 +12,7 @@ from wiretap.schemas import Server
 
 lock = threading.Lock()
 
+
 def keyvalue_get(key: str):
     path = Path(settings.base_path, 'keyvalue.json')
     if path.is_file():
@@ -48,6 +49,7 @@ def read_config():
     except Exception:
         raise RuntimeError(f'Could not read config file: {settings.config_file}')
 
+
 def get_hashes():
     if not Path(settings.hash_file).is_file():
         set_hashes([])
@@ -61,6 +63,7 @@ def get_hashes():
 def set_hashes(hashes: list):
     with open(settings.hash_file, 'w') as fd:
         json.dump(list(hashes), fd)
+
 
 def read_file(path):
     if not Path(path).is_file():
@@ -104,7 +107,7 @@ def read_reverse_order(filename: str):
         buffer = bytearray()
         while pointer_location >= 0:
             read_obj.seek(pointer_location)
-            pointer_location = pointer_location -1
+            pointer_location = pointer_location - 1
             new_byte = read_obj.read(1)
             if new_byte == b'\n':
                 yield buffer.decode()[::-1]

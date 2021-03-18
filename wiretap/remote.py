@@ -2,7 +2,6 @@ import logging
 import subprocess
 from pssh.clients import SSHClient
 
-from wiretap import collectors
 from wiretap.config import settings
 from wiretap.schemas import Server
 
@@ -15,31 +14,34 @@ class Remote:
     def __init__(self, server: Server, config: dict):
         self.server = server
         self.config = config
+        self._is_localhost = self.server.host in ['localhost', '127.0.0.1']
 
-        if not self._is_localhost():
+        if not self._is_localhost:
             self._establish_connection()
 
     def run(self, collector):
         """ Executes the *collector* on the remote, using the config from the *server*."""
-        config = self.config.get(collector.__name__.lower())
-        if not config:
-            config = {}
-        config['name'] = self.server.name
 
-        command = collector.command(config)
-        if not self._is_localhost():
+        config = self._get_config_for_collector(collector)
+
+        for command, aggregator in collector(config):
+            text_response = self._run_command(command)
+            yield aggregator(text_response, config)
+
+    def _run_command(self, command):
+        if not self._is_localhost:
             server_response = self.client.run_command(command)
             if stderr := list(server_response.stderr):
                 log.error(stderr)
-            text_response = server_response.stdout
+            return server_response.stdout
         else:
-            text_response = (x for x in subprocess.check_output(command, shell=True, text=True).splitlines())
-        return collector.run(text_response, config)
+            return (x for x in subprocess.check_output(command, shell=True, text=True).splitlines())
 
     def _establish_connection(self):
         self.client = SSHClient(self.server.host,
                                 user=self.server.username,
                                 pkey=settings.pkey_path)
-
-    def _is_localhost(self):
-        return self.server.host in ['localhost', '127.0.0.1']
+    def _get_config_for_collector(self, collector):
+        config = self.config.get(collector.__name__.lower()) or {}
+        config['name'] = self.server.name
+        return config

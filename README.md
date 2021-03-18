@@ -30,3 +30,4 @@ python3.8 -m nuitka --plugin-enable=pylint-warnings  --plugin-enable=gevent  --p
 
 ### Ideas and links
 - [Luminare for automatic anomaly detection](https://zillow.github.io/luminaire/tutorial/dataprofiling.html)
+- [Downsampling metrics](https://www.influxdata.com/blog/downsampling-influxdb-v2-0/)
