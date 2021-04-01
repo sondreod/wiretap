@@ -70,14 +70,13 @@ def remote_execution(server, engine):
     while True:
         clock = int(time.time()) - epoch
         try:
-            for c in ALL_COLLECTORS:
+            for c in engine.collectors:
                 interval = 60
                 if config := engine.config.get(c.__name__.lower()):
                     interval = int(config.get('interval', 60))
                 if clock % interval == 0:
                     for response in remote.run(c):
                         for metric in response:
-                            print(metric)
                             engine.add_metric(server, metric)
 
         except SessionError as e:

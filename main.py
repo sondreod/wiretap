@@ -4,13 +4,14 @@ import logging
 import threading
 
 from datetime import datetime
+from enum import Enum
 
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 import uvicorn
 
-from wiretap.remote import remote_execution
+from wiretap.remote import remote_execution, ALL_COLLECTORS
 from wiretap.schemas import Metric
 from wiretap.config import settings
 from wiretap.health import health_check
@@ -20,9 +21,16 @@ logging.basicConfig(level=logging.ERROR, format='%(asctime)s / %(name)s: %(messa
 log = logging.getLogger("root")
 
 
+class MODE(Enum):
+    NORMAL = 1
+    CONFIG = 2
+
 class Wiretap:
 
-    def __init__(self):
+    def __init__(self, collectors=None):
+        if not collectors:
+            collectors = ALL_COLLECTORS
+        self.collectors = collectors
         self._startup_check()
         self.hashes = get_hashes()
         self.config = read_config()
@@ -40,6 +48,8 @@ class Wiretap:
         self.metric_lock = threading.Lock()
         self.threads = list()
 
+        self.RUNMODE = MODE.NORMAL
+
         welcome = "\nWiretap:\n\nYour inventory:\n"
         for item in self.inventory:
             welcome += f"   {item}\n"
@@ -56,7 +66,6 @@ class Wiretap:
             self.threads.append(server_thread)
             server_thread.start()
 
-
     def aggregate_diff(self, key, value):
         last = self.diffs.get(key)
         with self.diff_lock:
@@ -65,6 +74,7 @@ class Wiretap:
             return value - last
 
     def add_metric(self, server, metric):
+        log.debug(f"add_metric {metric}")
         measurement = field_name = metric.tag
         if name_tuple := metric.tag.split('_', 1):
             if len(name_tuple) == 2:
@@ -82,10 +92,13 @@ class Wiretap:
             .field(field_name, metric.value) \
             .time(datetime.utcfromtimestamp(metric.time), WritePrecision.S)
 
-        if self.add_hash(hash(str(point.__dict__))):
-            with self.metric_lock:
-                self.add_point_to_db(point)
-                self.metrics.append(metric.json())
+        if self.RUNMODE is MODE.NORMAL:
+            if self.add_hash(hash(str(point.__dict__))):
+                with self.metric_lock:
+                    self.add_point_to_db(point)
+                    self.metrics.append(metric.json())
+        else:
+            print(metric.json())
 
     def add_hash(self, hash: int):
         """ Returns true if hash is new, otherwise false. New hashes are added to the list"""
@@ -119,33 +132,43 @@ class Wiretap:
             self.bucket_api.create_bucket(bucket)
         """
 
-def run_configmode():
-    print('Configmode')
 
 def run_webserver():
     uvicorn.run("web.web:app", host='127.0.0.1', port=1337, workers=4)
+
 
 if __name__ == '__main__':
 
     engine = Wiretap()
 
+    if sys.argv[-1] == 'config':
+        engine.RUNMODE = MODE.CONFIG
+        new_collectors = []
+        for collector in engine.config:
+            for col in ALL_COLLECTORS:
+                if collector == col.__name__:
+                    new_collectors.append(col)
+
+        engine = Wiretap(collectors=new_collectors)
+
     def main_loop(engine):
         while True:
             try:
-                for server in engine.inventory:
-                    health_obj = health_check(server.host)
-                    engine.add_metric(server, Metric(tag='health_http_status', time=int(time.time()), value=health_obj.http_status, unit='boolean'))
-                    engine.add_metric(server, Metric(tag='health_packet_loss', time=int(time.time()), value=health_obj.packet_loss, unit='%'))
-                    if health_obj.rtt:
-                        engine.add_metric(server, Metric(tag='health_rtt', time=int(time.time()), value=health_obj.rtt, unit='ms'))
+                if engine.RUNMODE is MODE.NORMAL:
+                    for server in engine.inventory:
+                        health_obj = health_check(server.host)
+                        engine.add_metric(server, Metric(tag='health_http_status', time=int(time.time()), value=health_obj.http_status, unit='boolean'))
+                        engine.add_metric(server, Metric(tag='health_packet_loss', time=int(time.time()), value=health_obj.packet_loss, unit='%'))
+                        if health_obj.rtt:
+                            engine.add_metric(server, Metric(tag='health_rtt', time=int(time.time()), value=health_obj.rtt, unit='ms'))
 
-                for thread in engine.threads:
-                    if not thread.is_alive():
-                        log.error(f"{thread.name} has stopped!")
-                set_hashes(engine.hashes)
-                engine.append_metrics()
-                for _ in range(10):
-                    time.sleep(1)
+                    for thread in engine.threads:
+                        if not thread.is_alive():
+                            log.error(f"{thread.name} has stopped!")
+                    set_hashes(engine.hashes)
+                    engine.append_metrics()
+                    for _ in range(10):
+                        time.sleep(1)
             except KeyboardInterrupt:
                 return
 
@@ -157,12 +180,11 @@ if __name__ == '__main__':
 
     main_loop_thread.start()
 
-    run_options = {'web': run_webserver, 'config': run_configmode}
-    if sys.argv[-1] in run_options.keys():
-        run_options[sys.argv[-1]].__call__()
+    if sys.argv[-1] == 'web':
+        run_webserver()
 
     main_loop_thread.join()
     exit()
 
-    for thread in threads:  # todo: Gracefull join threads?
+    for thread in engine.threads:  # todo: Gracefull join threads?
         thread.join()
