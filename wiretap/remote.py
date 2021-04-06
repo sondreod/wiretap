@@ -19,9 +19,6 @@ ALL_COLLECTORS = [
     collectors.disk,
     collectors.network,
     collectors.files,
-    #collectors.Disk,
-    #collectors.JournalCtl,
-    #collectors.Logs
 ]
 
 

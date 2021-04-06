@@ -71,26 +71,29 @@ def network(config=None):
         number_of_nics = int(result[-6].split(':')[0])
         for i in range(number_of_nics):
             pos = i*6
-            nic_name = result[pos].split(':')[1].strip().lower()
-            if nic_name == 'lo':
-                continue
-            rx_line = result[pos+3]
-            tx_line = result[pos+5]
-            rx, packets, errors, dropped, overrun, mcast = \
-                map(lambda x: int(x)//int(config.get('interval', 60)), re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", rx_line).groups())
-            if rx > 0:
-                yield Metric(tag=f'network_{nic_name}_rx_bytes', time=timestamp, value=rx, unit='bytes', agg_type='count')
-                yield Metric(tag=f'network_{nic_name}_rx_packets', time=timestamp, value=packets, unit='packets', agg_type='count')
-                yield Metric(tag=f'network_{nic_name}_rx_errors', time=timestamp, value=errors, unit='errors', agg_type='count')
-                yield Metric(tag=f'network_{nic_name}_rx_dropped', time=timestamp, value=dropped, unit='packets', agg_type='count')
+            try:
+                nic_name = result[pos].split(':')[1].strip().lower()
+                if nic_name == 'lo':
+                    continue
+                rx_line = result[pos+3]
+                tx_line = result[pos+5]
+                rx, packets, errors, dropped, overrun, mcast = \
+                    map(lambda x: int(x)//int(config.get('interval', 60)), re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", rx_line).groups())
+                if rx > 0:
+                    yield Metric(tag=f'network_{nic_name}_rx_bytes', time=timestamp, value=rx, unit='bytes', agg_type='count')
+                    yield Metric(tag=f'network_{nic_name}_rx_packets', time=timestamp, value=packets, unit='packets', agg_type='count')
+                    yield Metric(tag=f'network_{nic_name}_rx_errors', time=timestamp, value=errors, unit='errors', agg_type='count')
+                    yield Metric(tag=f'network_{nic_name}_rx_dropped', time=timestamp, value=dropped, unit='packets', agg_type='count')
 
-            tx, packets, errors, dropped, carrier, collsns = \
-                map(lambda x: int(x)//int(config.get('interval', 60)), re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", tx_line).groups())
-            if tx > 0:
-                yield Metric(tag=f'network_{nic_name}_tx_bytes', time=timestamp, value=tx, unit='bytes', agg_type='count')
-                yield Metric(tag=f'network_{nic_name}_tx_packets', time=timestamp, value=packets, unit='packets', agg_type='count')
-                yield Metric(tag=f'network_{nic_name}_tx_errors', time=timestamp, value=errors, unit='errors', agg_type='count')
-                yield Metric(tag=f'network_{nic_name}_tx_dropped', time=timestamp, value=dropped, unit='packets', agg_type='count')
+                tx, packets, errors, dropped, carrier, collsns = \
+                    map(lambda x: int(x)//int(config.get('interval', 60)), re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", tx_line).groups())
+                if tx > 0:
+                    yield Metric(tag=f'network_{nic_name}_tx_bytes', time=timestamp, value=tx, unit='bytes', agg_type='count')
+                    yield Metric(tag=f'network_{nic_name}_tx_packets', time=timestamp, value=packets, unit='packets', agg_type='count')
+                    yield Metric(tag=f'network_{nic_name}_tx_errors', time=timestamp, value=errors, unit='errors', agg_type='count')
+                    yield Metric(tag=f'network_{nic_name}_tx_dropped', time=timestamp, value=dropped, unit='packets', agg_type='count')
+            except IndexError:
+                pass
 
     yield command, run
 
@@ -152,7 +155,7 @@ def disk(config=None):
     def run(x, config):
         df_output, timestamp = list(x)
         avail, used, timestamp = \
-            map(int, [*re.match(r'(\d{3,20})M\s+(\d{3,20})M.+', df_output).groups(),
+            map(int, [*re.match(r'(\s*\d{3,20})M\s+(\d{3,20})M.+', df_output).groups(),
                       timestamp])
         yield from [
             Metric(tag='diskspace_total', time=timestamp, value=avail+used, unit='MiB'),
