@@ -31,3 +31,41 @@ python3.8 -m nuitka --plugin-enable=pylint-warnings  --plugin-enable=gevent  --p
 ### Ideas and links
 - [Luminare for automatic anomaly detection](https://zillow.github.io/luminaire/tutorial/dataprofiling.html)
 - [Downsampling metrics](https://www.influxdata.com/blog/downsampling-influxdb-v2-0/)
+
+### Sample config.json
+```json
+{
+  "cpu": {
+    "interval": "60"
+  },
+  "journalctl": {
+    "rules": [
+      {
+        "regex": [".*power", ".*power(?P<value>.)"],
+        "tag": "power_tag",
+        "agg_type": "count"
+      },
+      {
+        "regex": [".*mDNS", ".*mDNS (?P<value>\\w+)"],
+        "tag": "mdns",
+        "agg_type": "count"
+      }
+    ]
+  },
+   "files": {
+    "rules": [
+      {
+        "path": "/var/log",
+        "tag": "files_logs",
+        "agg_type": "mean"
+      },
+      {
+        "hosts": ["Localhost"],
+        "path": "/path/to/test_file",
+        "tag": "files_test",
+        "agg_type": "mean"
+      }
+    ]
+  }
+}
+```
