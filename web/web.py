@@ -41,7 +41,7 @@ def serve_inventory():
 @app.get("/api/metrics")
 def serve_metrics():
     for n, line in enumerate(read_reverse_order(settings.metric_file)):
-        if n <= 100 and line:
+        if n <= 100:
             try:
                 yield json.loads(line)
             except json.JSONDecodeError:

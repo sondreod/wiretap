@@ -61,6 +61,7 @@ class Remote:
         self.client = SSHClient(self.server.host,
                                 user=self.server.username,
                                 pkey=settings.pkey_path)
+
     def _get_config_for_collector(self, collector):
         config = self.config.get(collector.__name__.lower()) or {}
         config['name'] = self.server.name
