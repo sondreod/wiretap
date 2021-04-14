@@ -49,7 +49,13 @@ class Remote:
                 log.error(stderr)
             return server_response.stdout
         else:
-            return (x for x in subprocess.check_output(command, shell=True, text=True).splitlines())
+            try:
+                server_response = subprocess.check_output(command, shell=True, text=True)
+                return (x for x in server_response.splitlines())
+            except subprocess.CalledProcessError as e:
+                if not e.output:
+                    return []
+                raise
 
     def _establish_connection(self):
         self.client = SSHClient(self.server.host,
