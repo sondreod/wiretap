@@ -17,7 +17,10 @@ def journalctl(config=None):
         command = f'{command} --after-cursor="{cursor}"'
     else:
         command = f'{command} -S today'
-
+    commands = []
+    for p in config.get('rules'):
+        match_re, extract_re = p.get('regex')
+        commands.append(command + f""" | egrep "{match_re}" """)
 
     def run(x, config=None):
         x = list(x)
@@ -42,7 +45,8 @@ def journalctl(config=None):
 
             if config.get('rules'):
                 for rule in config.get('rules'):
-                    m = re.match(rule.get('regex'), line.message)
+                    match_re, extract_re = rule.get('regex')
+                    m = re.match(extract_re, line.message)
                     if m:
                         if m := m.groupdict():
                             metric = Metric(tag=rule.get('tag'),
@@ -59,7 +63,8 @@ def journalctl(config=None):
 
         if log_records:
             keyvalue_set(f"journal_cursor_{config.get('name')}", log_records[-1].cursor)
-    yield command, run
+    for cmd in commands:
+        yield cmd, run
 
 def network(config=None):
 
@@ -116,6 +121,7 @@ def cpu(config=None):
             Metric(tag='cpu_usage', time=timestamp, value=avg_1, unit='%'),
             Metric(tag='cpu_free', time=timestamp, value=round(1 - avg_1, 4), unit='%'),
             Metric(tag='cpu_cores', time=timestamp, value=cpus, unit='cores'),
+            Metric(tag='health_timestamp', time=timestamp, value=timestamp, unit='timestamp'),
         ]
 
     yield command, run
