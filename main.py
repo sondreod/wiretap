@@ -137,8 +137,8 @@ def run_webserver():
     uvicorn.run("web.web:app", host='127.0.0.1', port=1337, workers=4)
 
 
-if __name__ == '__main__':
 
+def run_main():
     engine = Wiretap()
 
     if sys.argv[-1] == 'config':
@@ -188,3 +188,6 @@ if __name__ == '__main__':
 
     for thread in engine.threads:  # todo: Gracefull join threads?
         thread.join()
+
+if __name__ == '__main__':
+    run_main()

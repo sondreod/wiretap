@@ -23,5 +23,8 @@ setuptools.setup(
         'fastapi',
         'aiofiles'
 
-    ]
+    ],
+    entry_points={
+        'console_scripts': ['wiretap=main:run_main']
+    }
 )
