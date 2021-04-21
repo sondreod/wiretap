@@ -14,7 +14,7 @@ import uvicorn
 from wiretap.remote import remote_execution, ALL_COLLECTORS
 from wiretap.schemas import Metric
 from wiretap.config import settings
-from wiretap.health import health_check
+from wiretap.health import health_check, certificate_check
 from wiretap.utils import read_config, read_inventory, get_hashes, set_hashes, append_file, check_files
 
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s / %(name)s: %(message)s')
@@ -158,6 +158,10 @@ def run_main():
                         health_obj = health_check(server.host)
                         engine.add_metric(server, Metric(tag='health_http_status', time=int(time.time()), value=health_obj.http_status, unit='boolean'))
                         engine.add_metric(server, Metric(tag='health_packet_loss', time=int(time.time()), value=health_obj.packet_loss, unit='%'))
+                        certificate_obj = certificate_check(server.host)
+                        if certificate_obj:
+                            engine.add_metric(server, Metric(tag='certificate_expires_at', time=int(time.time()), value=certificate_obj.expires_at, unit='timestamp'))
+                            engine.add_metric(server, Metric(tag='certificate_expires_in', time=int(time.time()), value=certificate_obj.expires_in, unit='s'))
                         if health_obj.rtt:
                             engine.add_metric(server, Metric(tag='health_rtt', time=int(time.time()), value=health_obj.rtt, unit='ms'))
 
