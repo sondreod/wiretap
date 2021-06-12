@@ -13,18 +13,15 @@ setuptools.setup(
     classifiers=[
         "Programming Language :: Python :: 3",
     ],
-    python_requires='>=3.8',
+    python_requires=">=3.8",
     install_requires=[
-        'influxdb_client',
-        'pydantic[dotenv]',
-        'requests',
-        'parallel-ssh',
-        'uvicorn',
-        'fastapi',
-        'aiofiles'
-
+        "influxdb_client",
+        "pydantic[dotenv]",
+        "requests",
+        "parallel-ssh",
+        "uvicorn",
+        "fastapi",
+        "aiofiles",
     ],
-    entry_points={
-        'console_scripts': ['wiretap=main:run_main']
-    }
+    entry_points={"console_scripts": ["wiretap=main:run_main"]},
 )

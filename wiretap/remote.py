@@ -23,18 +23,18 @@ ALL_COLLECTORS = [
 
 
 class Remote:
-    """ Establish a ssh connection to the *server* and run collectors"""
+    """Establish a ssh connection to the *server* and run collectors"""
 
     def __init__(self, server: Server, config: dict):
         self.server = server
         self.config = config
-        self._is_localhost = self.server.host in ['localhost','127.0.0.1']
+        self._is_localhost = self.server.host in ["localhost", "127.0.0.1"]
 
         if not self._is_localhost:
             self._establish_connection()
 
     def run(self, collector):
-        """ Executes the *collector* on the remote, using the config from the *server*."""
+        """Executes the *collector* on the remote, using the config from the *server*."""
 
         config = self._get_config_for_collector(collector)
 
@@ -50,7 +50,9 @@ class Remote:
             return server_response.stdout
         else:
             try:
-                server_response = subprocess.check_output(command, shell=True, text=True)
+                server_response = subprocess.check_output(
+                    command, shell=True, text=True
+                )
                 return (x for x in server_response.splitlines())
             except subprocess.CalledProcessError as e:
                 if not e.output:
@@ -58,13 +60,13 @@ class Remote:
                 raise
 
     def _establish_connection(self):
-        self.client = SSHClient(self.server.host,
-                                user=self.server.username,
-                                pkey=settings.pkey_path)
+        self.client = SSHClient(
+            self.server.host, user=self.server.username, pkey=settings.pkey_path
+        )
 
     def _get_config_for_collector(self, collector):
         config = self.config.get(collector.__name__.lower()) or {}
-        config['name'] = self.server.name
+        config["name"] = self.server.name
         return config
 
 
@@ -77,7 +79,7 @@ def remote_execution(server, engine):
             for c in engine.collectors:
                 interval = 60
                 if config := engine.config.get(c.__name__.lower()):
-                    interval = int(config.get('interval', 60))
+                    interval = int(config.get("interval", 60))
                 if clock % interval == 0:
                     for response in remote.run(c):
                         for metric in response:
@@ -95,4 +97,4 @@ def remote_execution(server, engine):
         if clock > 3600:
             epoch = int(time.time())
 
-        time.sleep(.5)
+        time.sleep(0.5)

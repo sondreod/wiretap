@@ -16,10 +16,10 @@ def journalctl(config=None):
     if cursor:
         command = f'{command} --after-cursor="{cursor}"'
     else:
-        command = f'{command} -S today'
+        command = f"{command} -S today"
     commands = []
-    for p in config.get('rules'):
-        match_re, extract_re = p.get('regex')
+    for p in config.get("rules"):
+        match_re, extract_re = p.get("regex")
         commands.append(command + f""" | egrep "{match_re}" """)
 
     def run(x, config=None):
@@ -43,28 +43,32 @@ def journalctl(config=None):
                 bootid = keyvalue_get(keyname)
             """
 
-            if config.get('rules'):
-                for rule in config.get('rules'):
-                    match_re, extract_re = rule.get('regex')
+            if config.get("rules"):
+                for rule in config.get("rules"):
+                    match_re, extract_re = rule.get("regex")
                     m = re.match(extract_re, line.message)
                     if m:
                         if m := m.groupdict():
-                            metric = Metric(tag=rule.get('tag'),
-                                            agg_type=rule.get('agg_type'),
-                                            value=1,
-                                            time=timestamp)
-                            if tag := m.get('tag'):
+                            metric = Metric(
+                                tag=rule.get("tag"),
+                                agg_type=rule.get("agg_type"),
+                                value=1,
+                                time=timestamp,
+                            )
+                            if tag := m.get("tag"):
                                 metric.tag = tag
-                            if name := m.get('name'):
+                            if name := m.get("name"):
                                 metric.name = name
-                            if value := m.get('value'):
+                            if value := m.get("value"):
                                 metric.value = value
                             yield metric
 
         if log_records:
             keyvalue_set(f"journal_cursor_{config.get('name')}", log_records[-1].cursor)
+
     for cmd in commands:
         yield cmd, run
+
 
 def network(config=None):
 
@@ -73,34 +77,91 @@ def network(config=None):
     def run(x, config=None):
         timestamp = next(x)
         result = list(x)
-        number_of_nics = int(result[-6].split(':')[0])
+        number_of_nics = int(result[-6].split(":")[0])
         for i in range(number_of_nics):
-            pos = i*6
+            pos = i * 6
             try:
-                nic_name = result[pos].split(':')[1].strip().lower()
-                if nic_name == 'lo':
+                nic_name = result[pos].split(":")[1].strip().lower()
+                if nic_name == "lo":
                     continue
-                rx_line = result[pos+3]
-                tx_line = result[pos+5]
-                rx, packets, errors, dropped, overrun, mcast = \
-                    map(lambda x: int(x)//int(config.get('interval', 60)), re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", rx_line).groups())
+                rx_line = result[pos + 3]
+                tx_line = result[pos + 5]
+                rx, packets, errors, dropped, overrun, mcast = map(
+                    lambda x: int(x) // int(config.get("interval", 60)),
+                    re.match(
+                        "\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", rx_line
+                    ).groups(),
+                )
                 if rx > 0:
-                    yield Metric(tag=f'network_{nic_name}_rx_bytes', time=timestamp, value=rx, unit='bytes', agg_type='count')
-                    yield Metric(tag=f'network_{nic_name}_rx_packets', time=timestamp, value=packets, unit='packets', agg_type='count')
-                    yield Metric(tag=f'network_{nic_name}_rx_errors', time=timestamp, value=errors, unit='errors', agg_type='count')
-                    yield Metric(tag=f'network_{nic_name}_rx_dropped', time=timestamp, value=dropped, unit='packets', agg_type='count')
+                    yield Metric(
+                        tag=f"network_{nic_name}_rx_bytes",
+                        time=timestamp,
+                        value=rx,
+                        unit="bytes",
+                        agg_type="count",
+                    )
+                    yield Metric(
+                        tag=f"network_{nic_name}_rx_packets",
+                        time=timestamp,
+                        value=packets,
+                        unit="packets",
+                        agg_type="count",
+                    )
+                    yield Metric(
+                        tag=f"network_{nic_name}_rx_errors",
+                        time=timestamp,
+                        value=errors,
+                        unit="errors",
+                        agg_type="count",
+                    )
+                    yield Metric(
+                        tag=f"network_{nic_name}_rx_dropped",
+                        time=timestamp,
+                        value=dropped,
+                        unit="packets",
+                        agg_type="count",
+                    )
 
-                tx, packets, errors, dropped, carrier, collsns = \
-                    map(lambda x: int(x)//int(config.get('interval', 60)), re.match("\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", tx_line).groups())
+                tx, packets, errors, dropped, carrier, collsns = map(
+                    lambda x: int(x) // int(config.get("interval", 60)),
+                    re.match(
+                        "\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", tx_line
+                    ).groups(),
+                )
                 if tx > 0:
-                    yield Metric(tag=f'network_{nic_name}_tx_bytes', time=timestamp, value=tx, unit='bytes', agg_type='count')
-                    yield Metric(tag=f'network_{nic_name}_tx_packets', time=timestamp, value=packets, unit='packets', agg_type='count')
-                    yield Metric(tag=f'network_{nic_name}_tx_errors', time=timestamp, value=errors, unit='errors', agg_type='count')
-                    yield Metric(tag=f'network_{nic_name}_tx_dropped', time=timestamp, value=dropped, unit='packets', agg_type='count')
+                    yield Metric(
+                        tag=f"network_{nic_name}_tx_bytes",
+                        time=timestamp,
+                        value=tx,
+                        unit="bytes",
+                        agg_type="count",
+                    )
+                    yield Metric(
+                        tag=f"network_{nic_name}_tx_packets",
+                        time=timestamp,
+                        value=packets,
+                        unit="packets",
+                        agg_type="count",
+                    )
+                    yield Metric(
+                        tag=f"network_{nic_name}_tx_errors",
+                        time=timestamp,
+                        value=errors,
+                        unit="errors",
+                        agg_type="count",
+                    )
+                    yield Metric(
+                        tag=f"network_{nic_name}_tx_dropped",
+                        time=timestamp,
+                        value=dropped,
+                        unit="packets",
+                        agg_type="count",
+                    )
             except IndexError:
                 pass
 
     yield command, run
+
 
 def cpu(config=None):
     command = r"date +%s && lscpu && uptime"
@@ -109,19 +170,28 @@ def cpu(config=None):
         timestamp = next(x)
         cpus = 0
         for line in x:
-            if line.startswith('CPU(s):'):
+            if line.startswith("CPU(s):"):
                 cpus = int(line[-4:])
-        cpu_averages = map(float, line.split('load average: ')[1].replace(',', '.').split('. '))
-        avg_1, avg_5, avg_15 = map(lambda y: round(y / cpus, 2), cpu_averages)  # Normalize to # of cores
+        cpu_averages = map(
+            float, line.split("load average: ")[1].replace(",", ".").split(". ")
+        )
+        avg_1, avg_5, avg_15 = map(
+            lambda y: round(y / cpus, 2), cpu_averages
+        )  # Normalize to # of cores
         try:
             assert 0 <= avg_1 <= 1
         except AssertionError:
             return []
         yield from [
-            Metric(tag='cpu_usage', time=timestamp, value=avg_1, unit='%'),
-            Metric(tag='cpu_free', time=timestamp, value=round(1 - avg_1, 4), unit='%'),
-            Metric(tag='cpu_cores', time=timestamp, value=cpus, unit='cores'),
-            Metric(tag='health_timestamp', time=timestamp, value=timestamp, unit='timestamp'),
+            Metric(tag="cpu_usage", time=timestamp, value=avg_1, unit="%"),
+            Metric(tag="cpu_free", time=timestamp, value=round(1 - avg_1, 4), unit="%"),
+            Metric(tag="cpu_cores", time=timestamp, value=cpus, unit="cores"),
+            Metric(
+                tag="health_timestamp",
+                time=timestamp,
+                value=timestamp,
+                unit="timestamp",
+            ),
         ]
 
     yield command, run
@@ -134,22 +204,36 @@ def memory(config=None):
         timestamp = next(x)
         for line in x:
             line = line.strip()
-            if line.startswith('Mem:'):
-                total, used, free, shared, buffcached, avail = \
-                    map(float, re.match(r"^Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", line).groups())
+            if line.startswith("Mem:"):
+                total, used, free, shared, buffcached, avail = map(
+                    float,
+                    re.match(
+                        r"^Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", line
+                    ).groups(),
+                )
                 yield from [
-                    Metric(tag='memory_available', time=timestamp, value=avail, unit='MiB'),
-                    Metric(tag='memory_used', time=timestamp, value=used, unit='MiB'),
-                    Metric(tag='memory_total', time=timestamp, value=total, unit='MiB'),
-                    Metric(tag='memory_free', time=timestamp, value=total-used, unit='MiB')
+                    Metric(
+                        tag="memory_available", time=timestamp, value=avail, unit="MiB"
+                    ),
+                    Metric(tag="memory_used", time=timestamp, value=used, unit="MiB"),
+                    Metric(tag="memory_total", time=timestamp, value=total, unit="MiB"),
+                    Metric(
+                        tag="memory_free",
+                        time=timestamp,
+                        value=total - used,
+                        unit="MiB",
+                    ),
                 ]
-            if line.startswith('Swap:'):
-                total, used, free = \
-                    map(float, re.match(r"^Swap:\s+(\d+)\s+(\d+)\s+(\d+)", line).groups())
+            if line.startswith("Swap:"):
+                total, used, free = map(
+                    float, re.match(r"^Swap:\s+(\d+)\s+(\d+)\s+(\d+)", line).groups()
+                )
                 yield from [
-                    Metric(tag='swap_used', time=timestamp, value=used, unit='MiB'),
-                    Metric(tag='swap_total', time=timestamp, value=total, unit='MiB'),
-                    Metric(tag='swap_free', time=timestamp, value=total-used, unit='MiB')
+                    Metric(tag="swap_used", time=timestamp, value=used, unit="MiB"),
+                    Metric(tag="swap_total", time=timestamp, value=total, unit="MiB"),
+                    Metric(
+                        tag="swap_free", time=timestamp, value=total - used, unit="MiB"
+                    ),
                 ]
 
     yield command, run
@@ -160,40 +244,49 @@ def disk(config=None):
 
     def run(x, config):
         df_output, timestamp = list(x)
-        avail, used, timestamp = \
-            map(int, [*re.match(r'(\s*\d{3,20})M\s+(\d{3,20})M.+', df_output).groups(),
-                      timestamp])
+        avail, used, timestamp = map(
+            int,
+            [
+                *re.match(r"(\s*\d{3,20})M\s+(\d{3,20})M.+", df_output).groups(),
+                timestamp,
+            ],
+        )
         yield from [
-            Metric(tag='diskspace_total', time=timestamp, value=avail+used, unit='MiB'),
-            Metric(tag='diskspace_used', time=timestamp, value=used, unit='MiB'),
-            Metric(tag='diskspace_free', time=timestamp, value=avail, unit='MiB'),
-            Metric(tag='diskspace_percent', time=timestamp, value=round(used/avail, 2), unit='%')
+            Metric(
+                tag="diskspace_total", time=timestamp, value=avail + used, unit="MiB"
+            ),
+            Metric(tag="diskspace_used", time=timestamp, value=used, unit="MiB"),
+            Metric(tag="diskspace_free", time=timestamp, value=avail, unit="MiB"),
+            Metric(
+                tag="diskspace_percent",
+                time=timestamp,
+                value=round(used / avail, 2),
+                unit="%",
+            ),
         ]
 
     yield command, run
 
+
 def files(config=None):
 
     command = r"date +%s"
-    if rules := config.get('rules'):
+    if rules := config.get("rules"):
         for rule in rules:
-            if rule.get('hosts'):
-                if config.get('name') not in rule.get('hosts'):
+            if rule.get("hosts"):
+                if config.get("name") not in rule.get("hosts"):
                     continue
             command += f" && echo '{rule.get('tag')}'; ls {rule.get('path')} | wc -l"
 
     def run(x, config=None):
         timestamp = next(x)
-        for tag, count in zip(*[x]*2):  # Sjukt
-            metric = Metric(tag=tag,
-                            agg_type="mean",
-                            unit="files",
-                            value=int(count),
-                            time=timestamp)
+        for tag, count in zip(*[x] * 2):  # Sjukt
+            metric = Metric(
+                tag=tag, agg_type="mean", unit="files", value=int(count), time=timestamp
+            )
             yield metric
 
     yield command, run
-
 
 
 class Logs:
@@ -203,18 +296,30 @@ class Logs:
 
     @staticmethod
     def run(x, config=None):
-        lineformat = re.compile( r"""(?P<ipaddress>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) - - \[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] ((\"(?P<method>[A-Z]+) )(?P<url>.+)(http\/1\.1")) (?P<statuscode>\d{3}) (?P<bytessent>\d+) (?P<refferer>-|"([^"]+)") (["](?P<useragent>[^"]+)["])""", re.IGNORECASE)
+        lineformat = re.compile(
+            r"""(?P<ipaddress>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) - - \[(?P<dateandtime>\d{2}\/[a-z]{3}\/\d{4}:\d{2}:\d{2}:\d{2} (\+|\-)\d{4})\] ((\"(?P<method>[A-Z]+) )(?P<url>.+)(http\/1\.1")) (?P<statuscode>\d{3}) (?P<bytessent>\d+) (?P<refferer>-|"([^"]+)") (["](?P<useragent>[^"]+)["])""",
+            re.IGNORECASE,
+        )
         for line in x:
             if m := re.search(lineformat, line):
                 if m := m.groupdict():
-                    timestamp = int(datetime.datetime.strptime(m.get('dateandtime'), "%d/%b/%Y:%H:%M:%S %z").timestamp())
-                    yield Metric(tag='pageview_'+m.get('url'), time=timestamp, value=1, unit='page')
+                    timestamp = int(
+                        datetime.datetime.strptime(
+                            m.get("dateandtime"), "%d/%b/%Y:%H:%M:%S %z"
+                        ).timestamp()
+                    )
+                    yield Metric(
+                        tag="pageview_" + m.get("url"),
+                        time=timestamp,
+                        value=1,
+                        unit="page",
+                    )
+
 
 class DiskActivity:
     # cat /proc/diskstats
     # https://www.kernel.org/doc/Documentation/block/stat.txt
     pass
-
 
 
 class Processes:
@@ -226,7 +331,11 @@ class Processes:
     def run(x, config=None):
         timestamp = next(x)
         for line in x:
-            if line.endswith(' nginx'):
-                yield Metric(tag='process', time=timestamp, value='nginx', unit='process', agg_type='nop')
-
-
+            if line.endswith(" nginx"):
+                yield Metric(
+                    tag="process",
+                    time=timestamp,
+                    value="nginx",
+                    unit="process",
+                    agg_type="nop",
+                )

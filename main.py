@@ -15,9 +15,16 @@ from wiretap.remote import remote_execution, ALL_COLLECTORS
 from wiretap.schemas import Metric
 from wiretap.config import settings
 from wiretap.health import health_check, certificate_check
-from wiretap.utils import read_config, read_inventory, get_hashes, set_hashes, append_file, check_files
+from wiretap.utils import (
+    read_config,
+    read_inventory,
+    get_hashes,
+    set_hashes,
+    append_file,
+    check_files,
+)
 
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s / %(name)s: %(message)s')
+logging.basicConfig(level=logging.ERROR, format="%(asctime)s / %(name)s: %(message)s")
 log = logging.getLogger("root")
 
 
@@ -25,8 +32,8 @@ class MODE(Enum):
     NORMAL = 1
     CONFIG = 2
 
-class Wiretap:
 
+class Wiretap:
     def __init__(self, collectors=None):
         if not collectors:
             collectors = ALL_COLLECTORS
@@ -38,7 +45,9 @@ class Wiretap:
         self.metrics = []
         self.diffs = {}
 
-        self.client = InfluxDBClient(url=settings.INFLUX_HOST, token=settings.INFLUX_TOKEN)
+        self.client = InfluxDBClient(
+            url=settings.INFLUX_HOST, token=settings.INFLUX_TOKEN
+        )
         self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
         self.query_api = self.client.query_api()
         self.bucket_api = self.client.buckets_api()
@@ -59,10 +68,12 @@ class Wiretap:
 
     def start_server_threads(self):
         for server in self.inventory:
-            server_thread = threading.Thread(target=remote_execution,
-                                             args=(server, self),
-                                             name=f"thread_{server.name}",
-                                             daemon=True)
+            server_thread = threading.Thread(
+                target=remote_execution,
+                args=(server, self),
+                name=f"thread_{server.name}",
+                daemon=True,
+            )
             self.threads.append(server_thread)
             server_thread.start()
 
@@ -76,21 +87,25 @@ class Wiretap:
     def add_metric(self, server, metric):
         log.debug(f"add_metric {metric}")
         measurement = field_name = metric.tag
-        if name_tuple := metric.tag.split('_', 1):
+        if name_tuple := metric.tag.split("_", 1):
             if len(name_tuple) == 2:
                 measurement, field_name = name_tuple
 
-        if measurement in ['network']:
-            metric.value = self.aggregate_diff(server.name+measurement+field_name, metric.value)
+        if measurement in ["network"]:
+            metric.value = self.aggregate_diff(
+                server.name + measurement + field_name, metric.value
+            )
             if not metric.value:
                 return None
 
         metric.name = server.name
-        point = Point(measurement) \
-            .tag("name", metric.name) \
-            .tag("agg_type", metric.agg_type) \
-            .field(field_name, metric.value) \
+        point = (
+            Point(measurement)
+            .tag("name", metric.name)
+            .tag("agg_type", metric.agg_type)
+            .field(field_name, metric.value)
             .time(datetime.utcfromtimestamp(metric.time), WritePrecision.S)
+        )
 
         if self.RUNMODE is MODE.NORMAL:
             if self.add_hash(hash(str(point.__dict__))):
@@ -101,7 +116,7 @@ class Wiretap:
             print(metric.json())
 
     def add_hash(self, hash: int):
-        """ Returns true if hash is new, otherwise false. New hashes are added to the list"""
+        """Returns true if hash is new, otherwise false. New hashes are added to the list"""
         if hash in self.hashes:
             return False
         self.hashes.add(hash)
@@ -111,7 +126,7 @@ class Wiretap:
         self.write_api.write(settings.INFLUX_BUCKET_PREFIX, settings.INFLUX_ORG, point)
 
     def append_metrics(self):
-        print(f'Appending {len(self.metrics)} metrics')
+        print(f"Appending {len(self.metrics)} metrics")
         with self.metric_lock:
             append_file(settings.metric_file, self.metrics)
             self.metrics = []
@@ -134,13 +149,13 @@ class Wiretap:
 
 
 def run_webserver():
-    uvicorn.run("web.web:app", host='127.0.0.1', port=1337, workers=4)
+    uvicorn.run("web.web:app", host="127.0.0.1", port=1337, workers=4)
 
 
 def run_main():
     engine = Wiretap()
 
-    if sys.argv[-1] == 'config':
+    if sys.argv[-1] == "config":
         engine.RUNMODE = MODE.CONFIG
         new_collectors = []
         for collector in engine.config:
@@ -156,14 +171,54 @@ def run_main():
                 if engine.RUNMODE is MODE.NORMAL:
                     for server in engine.inventory:
                         health_obj = health_check(server.host)
-                        engine.add_metric(server, Metric(tag='health_http_status', time=int(time.time()), value=health_obj.http_status, unit='boolean'))
-                        engine.add_metric(server, Metric(tag='health_packet_loss', time=int(time.time()), value=health_obj.packet_loss, unit='%'))
+                        engine.add_metric(
+                            server,
+                            Metric(
+                                tag="health_http_status",
+                                time=int(time.time()),
+                                value=health_obj.http_status,
+                                unit="boolean",
+                            ),
+                        )
+                        engine.add_metric(
+                            server,
+                            Metric(
+                                tag="health_packet_loss",
+                                time=int(time.time()),
+                                value=health_obj.packet_loss,
+                                unit="%",
+                            ),
+                        )
                         certificate_obj = certificate_check(server.host)
                         if certificate_obj:
-                            engine.add_metric(server, Metric(tag='certificate_expires_at', time=int(time.time()), value=certificate_obj.expires_at, unit='timestamp'))
-                            engine.add_metric(server, Metric(tag='certificate_expires_in', time=int(time.time()), value=certificate_obj.expires_in, unit='s'))
+                            engine.add_metric(
+                                server,
+                                Metric(
+                                    tag="certificate_expires_at",
+                                    time=int(time.time()),
+                                    value=certificate_obj.expires_at,
+                                    unit="timestamp",
+                                ),
+                            )
+                            engine.add_metric(
+                                server,
+                                Metric(
+                                    tag="certificate_expires_in",
+                                    time=int(time.time()),
+                                    value=certificate_obj.expires_in,
+                                    unit="s",
+                                ),
+                            )
                         if health_obj.rtt:
-                            engine.add_metric(server, Metric(tag='health_rtt', time=int(time.time()), value=health_obj.rtt, unit='ms'))
+                            engine.add_metric(
+                                server,
+                                Metric(
+                                    tag="health_rtt",
+                                    time=int(time.time()),
+                                    value=health_obj.rtt,
+                                    unit="ms",
+                                ),
+                            )
 
                     for thread in engine.threads:
                         if not thread.is_alive():
@@ -175,15 +230,14 @@ def run_main():
             except KeyboardInterrupt:
                 return
 
-    main_loop_thread = threading.Thread(target=main_loop,
-                         args=(engine,),
-                         name=f"thread_main")
+    main_loop_thread = threading.Thread(
+        target=main_loop, args=(engine,), name=f"thread_main"
+    )
     engine.threads.append(main_loop_thread)
-
 
     main_loop_thread.start()
 
-    if sys.argv[-1] == 'web':
+    if sys.argv[-1] == "web":
         run_webserver()
 
     main_loop_thread.join()
@@ -192,5 +246,6 @@ def run_main():
     for thread in engine.threads:  # todo: Gracefull join threads?
         thread.join()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     run_main()
